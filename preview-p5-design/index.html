@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex,nofollow" />
+<title>かなラダーパズル｜デザイン方向 見比べ</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+    background:#0b0c10;color:#e8e6e0;line-height:1.6;
+    padding:calc(env(safe-area-inset-top) + 20px) 14px calc(env(safe-area-inset-bottom) + 40px);
+  }
+  .wrap{max-width:520px;margin:0 auto}
+  .lead{font-size:.86rem;color:#9aa0ad;margin:0 0 6px}
+  h1{font-size:1.15rem;margin:0 0 6px}
+  .note{font-size:.78rem;color:#9aa0ad;background:#15171d;border:1px solid #262a33;border-radius:10px;padding:10px 12px;margin:14px 0 26px}
+
+  /* ── 各案の枠 ── */
+  .dir{margin:0 0 34px;border-radius:18px;overflow:hidden;border:1px solid #262a33}
+  .dir-head{padding:12px 14px;background:#15171d;border-bottom:1px solid #262a33}
+  .dir-name{font-size:1rem;font-weight:700;margin:0}
+  .dir-desc{font-size:.76rem;color:#9aa0ad;margin:4px 0 0}
+  .screen{padding:16px 14px 20px}
+
+  /* ── 共通の画面パーツ（配色は各案の変数で上書き） ── */
+  .s{background:var(--bg);color:var(--fg);font-family:var(--font)}
+  .s .bar{display:flex;justify-content:space-between;align-items:baseline;font-size:.72rem;color:var(--dim);margin-bottom:10px}
+  .s .chap{letter-spacing:.08em}
+  .s .goal{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 14px}
+  .s .gw{text-align:center;padding:6px 10px;border-radius:var(--r-sm);background:var(--surface);border:1px solid var(--line);min-width:88px}
+  .s .gl{display:block;font-size:.6rem;color:var(--dim);letter-spacing:.14em}
+  .s .gr{display:block;font-size:1.02rem;font-weight:700;letter-spacing:.08em}
+  .s .gg{display:block;font-size:.68rem;color:var(--dim)}
+  .s .arrow{color:var(--accent);font-size:1rem}
+  .s .tiles{display:flex;gap:var(--tile-gap);justify-content:center;margin:6px 0 10px}
+  .s .tile{
+    width:var(--tile);height:calc(var(--tile) * 1.18);display:grid;place-items:center;
+    font-size:calc(var(--tile) * .52);font-weight:var(--tile-weight);
+    background:var(--tile-bg);border:var(--tile-border);border-radius:var(--r-tile);
+    box-shadow:var(--tile-shadow);color:var(--tile-fg);
+  }
+  .s .tile.on{border-color:var(--accent);box-shadow:var(--tile-on-shadow);color:var(--accent)}
+  .s .surface{text-align:center;font-size:1.02rem;font-weight:600;margin:2px 0 2px}
+  .s .mean{text-align:center;font-size:.74rem;color:var(--dim);margin:0 0 14px}
+  .s .mean b{color:var(--accent);font-weight:600;font-size:.66rem;letter-spacing:.1em;margin-right:6px}
+  .s .acts{display:flex;gap:8px}
+  .s .btn{
+    flex:1;min-height:42px;border-radius:var(--r-btn);border:var(--btn-border);
+    background:var(--btn-bg);color:var(--btn-fg);font:inherit;font-size:.8rem;font-weight:600;
+  }
+  .s .btn.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+  .s .clear{
+    margin-top:14px;border-radius:var(--r-sm);padding:12px;text-align:center;
+    background:var(--clear-bg);border:1px solid var(--accent);
+  }
+  .s .clear .t{font-size:1.05rem;font-weight:700;color:var(--accent);margin:0 0 2px}
+  .s .clear .d{font-size:.74rem;color:var(--dim);margin:0}
+  .s .stars{font-size:1rem;letter-spacing:.16em;margin:4px 0 0}
+
+  /* ══ A：夜更けの書斎 ══ */
+  .A{
+    --bg:#12141a;--surface:#1b1e26;--fg:#ece8dd;--dim:#8b8fa0;--line:#2b303c;
+    --accent:#d9a441;--accent-fg:#1a1408;
+    --font:"Hiragino Mincho ProN","Yu Mincho",serif;
+    --tile:60px;--tile-gap:8px;--tile-weight:600;--tile-bg:#1b1e26;--tile-fg:#ece8dd;
+    --tile-border:1px solid #333a48;--r-tile:10px;
+    --tile-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+    --tile-on-shadow:0 0 0 1px #d9a441, inset 0 1px 0 rgba(255,255,255,.06);
+    --r-sm:10px;--r-btn:9px;--btn-bg:transparent;--btn-fg:#ece8dd;--btn-border:1px solid #3a4150;
+    --clear-bg:rgba(217,164,65,.08);
+  }
+  /* ══ B：藍と金（和モダン） ══ */
+  .B{
+    --bg:#0f1d2e;--surface:#16293f;--fg:#f0ece2;--dim:#8ba0b8;--line:#25405c;
+    --accent:#e8b84b;--accent-fg:#14243a;
+    --font:"Hiragino Mincho ProN","Yu Mincho",serif;
+    --tile:60px;--tile-gap:10px;--tile-weight:500;--tile-bg:transparent;--tile-fg:#f0ece2;
+    --tile-border:1px solid #2f4c6b;--r-tile:3px;
+    --tile-shadow:0 2px 0 rgba(232,184,75,.22);
+    --tile-on-shadow:0 3px 0 #e8b84b;
+    --r-sm:4px;--r-btn:3px;--btn-bg:transparent;--btn-fg:#f0ece2;--btn-border:1px solid #2f4c6b;
+    --clear-bg:rgba(232,184,75,.07);
+  }
+  .B .gr{letter-spacing:.16em}
+  /* ══ C：やわらかポップ ══ */
+  .C{
+    --bg:#fdf7ef;--surface:#ffffff;--fg:#33302c;--dim:#8a827a;--line:#eee3d5;
+    --accent:#f4794f;--accent-fg:#ffffff;
+    --font:"Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+    --tile:62px;--tile-gap:9px;--tile-weight:700;--tile-bg:#ffffff;--tile-fg:#33302c;
+    --tile-border:2px solid #f0e4d4;--r-tile:18px;
+    --tile-shadow:0 3px 0 #efe1cf;
+    --tile-on-shadow:0 3px 0 #e86a3f;
+    --r-sm:16px;--r-btn:14px;--btn-bg:#ffffff;--btn-fg:#33302c;--btn-border:2px solid #f0e4d4;
+    --clear-bg:#fff6ef;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="lead">かなラダーパズル</p>
+  <h1>デザイン方向の見比べ（3案）</h1>
+  <p class="note">
+    同じ画面（第2章・プレイ中とクリアの瞬間）を3つの方向で描いたものです。<b>気に入った案の記号（A/B/C）を教えてください。</b>
+    細かい色や余白は選んだあとで詰めます。※ここは見た目の確認用で、まだ動きません。
+  </p>
+
+  <!-- A -->
+  <section class="dir">
+    <div class="dir-head">
+      <p class="dir-name">A：夜更けの書斎</p>
+      <p class="dir-desc">今の路線を洗練させる。落ち着いた暗色＋金、明朝体。大人が静かに遊ぶ夜の雰囲気。「YOFUKE」の名に素直。</p>
+    </div>
+    <div class="screen s A">
+      <div class="bar"><span class="chap">第2章　3 / 10問</span><span>最短4手</span></div>
+      <div class="goal">
+        <div class="gw"><span class="gl">START</span><span class="gr">きかん</span><span class="gg">期間</span></div>
+        <span class="arrow">→</span>
+        <div class="gw"><span class="gl">GOAL</span><span class="gr">くれる</span><span class="gg">暮れる</span></div>
+      </div>
+      <div class="tiles"><div class="tile">き</div><div class="tile on">れ</div><div class="tile">い</div></div>
+      <p class="surface">きれい</p>
+      <p class="mean"><b>意味</b>よごれがなく美しいこと</p>
+      <div class="acts"><button class="btn">ヒント（3）</button><button class="btn">パス（3）</button><button class="btn">リセット</button></div>
+      <div class="clear">
+        <p class="t">クリア！</p>
+        <p class="stars">★★★</p>
+        <p class="d">4手で到達（最短）</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="dir">
+    <div class="dir-head">
+      <p class="dir-name">B：藍と金（和モダン）</p>
+      <p class="dir-desc">深い藍＋金の細い罫。角を立て、余白を広くとった工芸品のような佇まい。「日本語で遊ぶ」を前面に。高級感が出やすい。</p>
+    </div>
+    <div class="screen s B">
+      <div class="bar"><span class="chap">第2章　3 / 10問</span><span>最短4手</span></div>
+      <div class="goal">
+        <div class="gw"><span class="gl">はじめ</span><span class="gr">きかん</span><span class="gg">期間</span></div>
+        <span class="arrow">→</span>
+        <div class="gw"><span class="gl">おわり</span><span class="gr">くれる</span><span class="gg">暮れる</span></div>
+      </div>
+      <div class="tiles"><div class="tile">き</div><div class="tile on">れ</div><div class="tile">い</div></div>
+      <p class="surface">きれい</p>
+      <p class="mean"><b>意味</b>よごれがなく美しいこと</p>
+      <div class="acts"><button class="btn">ヒント（3）</button><button class="btn">パス（3）</button><button class="btn">リセット</button></div>
+      <div class="clear">
+        <p class="t">クリア！</p>
+        <p class="stars">★★★</p>
+        <p class="d">4手で到達（最短）</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="dir">
+    <div class="dir-head">
+      <p class="dir-name">C：やわらかポップ（明るい）</p>
+      <p class="dir-desc">生成りの明るい背景に丸いタイル。家族・子どもにも入りやすい親しみやすさ。辞書の語釈が子ども向けなのと相性が良い。</p>
+    </div>
+    <div class="screen s C">
+      <div class="bar"><span class="chap">第2章　3 / 10問</span><span>最短4手</span></div>
+      <div class="goal">
+        <div class="gw"><span class="gl">スタート</span><span class="gr">きかん</span><span class="gg">期間</span></div>
+        <span class="arrow">→</span>
+        <div class="gw"><span class="gl">ゴール</span><span class="gr">くれる</span><span class="gg">暮れる</span></div>
+      </div>
+      <div class="tiles"><div class="tile">き</div><div class="tile on">れ</div><div class="tile">い</div></div>
+      <p class="surface">きれい</p>
+      <p class="mean"><b>いみ</b>よごれがなく美しいこと</p>
+      <div class="acts"><button class="btn">ヒント（3）</button><button class="btn">パス（3）</button><button class="btn">リセット</button></div>
+      <div class="clear">
+        <p class="t">クリア！</p>
+        <p class="stars">★★★</p>
+        <p class="d">4手で到達（最短）</p>
+      </div>
+    </div>
+  </section>
+
+  <p class="note">
+    <b>選び方のめやす</b><br>
+    ・大人向けに静かで上質に＝<b>A</b>／作品としての格・和の高級感＝<b>B</b>／家族や子どもにも広く＝<b>C</b><br>
+    決まったら、選んだ方向で全画面（タイトル・盤面・塔・図鑑・エンディング）を整え、動き（タイルの反応、クリアの演出、称号の昇格）も作り込みます。
+  </p>
+</div>
+</body>
+</html>
