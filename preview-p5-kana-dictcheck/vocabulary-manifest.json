@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-25-v3.16-toshima",
+  "version": "2026-07-25-v3.17-naruto",
   "status": "frozen",
   "source": {
     "mozc_repository": "google/mozc",
@@ -22,7 +22,7 @@
     "common3.json": "276456e7b4bcaf888337cb8b9bf3d9451d1948622662e7930a30f81b27b53ecf",
     "problems.json": "30e494a94d702cdf95f4872f49ea75853d27fea134115960bf178a04d4074d5a",
     "accept3.json": "89e31582f34d1311f6fa8ef077eb378cb72e39e67442d5f951c789888212c16e",
-    "definitions3.json": "d0084aa3eaff8565e564431f6b59b765d11d80d037ab73e15b6461ad25b59de7",
+    "definitions3.json": "56a660a434fd8b377409b594ec3c8ea1ee72d444abe7962bd6215504ff26ce62",
     "classifications3.json": "8a81db3bdeffbf49fa91a86b707ab1fe400ccd4d2d8f18c245ddd9f7696d20be"
   }
 }
