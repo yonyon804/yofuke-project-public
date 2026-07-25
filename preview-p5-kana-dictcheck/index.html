@@ -76,6 +76,7 @@
       function classify(r){
         if (state.surf.has(r)) return {kind:"playable", cls:"playable", surface:state.surf.get(r), def:state.defs[r]||""};
         if (state.cls[r]==="prohibited") return {kind:"prohibited", cls:"prohibited"};
+        if (state.cls[r]==="unlinkable") return {kind:"unlinkable", cls:"unlinkable"};
         if (state.cls[r]) return {kind:"oos", cls:state.cls[r]};
         return {kind:"unknown", cls:"unknown"};
       }
@@ -98,12 +99,14 @@
         const c = classify(r); state.cur = {r, ...c};
         const badge = c.kind==="playable" ? ["b-ok","✅ 採用（ゲームで使える）"]
           : c.kind==="prohibited" ? ["b-ng","🚫 禁止（不適切として除外）"]
+          : c.kind==="unlinkable" ? ["b-oos","🔗 未接続（入れたいが、つながる相手がいない）"]
           : c.kind==="oos" ? ["b-oos","⛔ 対象外（実在するが未採用）"]
           : ["b-unk","❓ 未登録（辞書が認識しない）"];
         let html = `<span class="badge ${badge[0]}">${badge[1]}</span>`;
         html += `<div class="row"><span class="k">読み</span><span class="v">${esc(r)}</span></div>`;
         if (c.surface) html += `<div class="row"><span class="k">表記</span><span class="v">${esc(c.surface)}</span></div>`;
         if (c.def) html += `<div class="row"><span class="k">意味</span><span class="v">${esc(c.def)}</span></div>`;
+        if (c.kind==="unlinkable") html += `<div class="row"><span class="k">理由</span><span class="v">語としては採用してよいが、1文字だけ変えてつながる相手が辞書に無く、行き止まりになるため入れられない。中継ぎになる自然な語を一緒に採れば入れられる。</span></div>`;
         if (r.length!==3) html += `<div class="row"><span class="k"></span><span class="v" style="color:var(--warn)">※ このゲームは3文字。今は${r.length}文字</span></div>`;
 
         // アクション
@@ -138,7 +141,8 @@
             `<button class="send" id="send">GitHubへ表記変更を送信</button>`;
           $("send").onclick = ()=>{ const s=norm($("f-s").value); if(!s)return alert("表記を入れてください"); open(issueUrl("surface", c.r, {surface:s, def:norm($("f-def").value)||null}), "_blank", "noopener"); };
         } else if (action==="add"){
-          edit.innerHTML = `<label>表記（漢字/カタカナなど）</label><input id="f-s" value="${esc(c.r)}" />`+
+          edit.innerHTML = (c.kind==="unlinkable" ? `<p style="color:var(--warn)">この語は1文字違いでつながる相手がいないため、このままでは入れられません。採用するなら中継ぎになる自然な語も一緒に採る必要があります（AIが探して提案します）。</p>` : "")+
+            `<label>表記（漢字/カタカナなど）</label><input id="f-s" value="${esc(c.r)}" />`+
             `<label>意味（子ども向けに短く）</label><textarea id="f-def" rows="2" placeholder="この語の意味"></textarea>`+
             `<button class="send" id="send">GitHubへ追加を送信</button>`;
           $("send").onclick = ()=>{ const s=norm($("f-s").value), d=norm($("f-def").value); if(!s||!d)return alert("表記と意味を入れてください"); open(issueUrl("add", c.r, {surface:s, def:d}), "_blank", "noopener"); };
