@@ -1,0 +1,39 @@
+name: Stage Kotonect Release
+
+on:
+  push:
+    branches:
+      - publish/p5-kotonect-20260725
+    paths:
+      - ".github/workflows/stage-p5-release.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  stage:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: publish/p5-kotonect-20260725
+      - name: Download verified release artifact
+        env:
+          RELEASE_ARTIFACT_URL: 'undefined'
+        run: |
+          curl --fail --location --silent --show-error "$RELEASE_ARTIFACT_URL" -o /tmp/p5-release.zip
+          mkdir -p /tmp/p5-release
+          unzip -q /tmp/p5-release.zip -d /tmp/p5-release
+      - name: Replace the two public editions
+        run: |
+          rm -rf preview-p5-kana preview-p5-kana-dev
+          cp -a /tmp/p5-release/preview-p5-kana .
+          cp -a /tmp/p5-release/preview-p5-kana-dev .
+      - name: Commit verified static files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add preview-p5-kana preview-p5-kana-dev
+          git commit -m "publish(p5): stage Kotonect release [release built]"
+          git push origin HEAD:publish/p5-kotonect-20260725
