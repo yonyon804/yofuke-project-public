@@ -1,5 +1,5 @@
 {
-  "version": "2026-07-25-v3.12-yusei",
+  "version": "2026-07-25-v3.13-shop",
   "status": "frozen",
   "source": {
     "mozc_repository": "google/mozc",
@@ -7,21 +7,21 @@
     "japanese_wordnet": "1.1 (existing approved generated definitions reused only on matching surface)"
   },
   "counts": {
-    "playable": 4319,
+    "playable": 4367,
     "prohibited": 115,
-    "real-but-out-of-scope": 22184,
+    "real-but-out-of-scope": 22137,
     "unknown": "implicit-not-enumerable"
   },
-  "playable_graph_words": 4319,
+  "playable_graph_words": 4367,
   "common_endpoint_words": 1200,
   "problems": 400,
   "requires_user_decision": 0,
   "sha256": {
-    "words3.json": "a26ec1b48878af0a827525fcefe75ee35c8a464ab9b2a3cc40230ce4645f6f7f",
-    "common3.json": "455404fc1335eea31fa31d3b7db77b4d11f6fffe1e2109c7fe186c4a54b51d07",
-    "problems.json": "ce83938bcb29c9d7ec0f2f8e99eddb2d433508fb5a05beaadcc1229511650be8",
-    "accept3.json": "82d17101a0405cddacdaf18df649f2a4caf1054894bba4d67cba113541fb889f",
-    "definitions3.json": "28cc51685dcea7372d5bdc687ca4e3618cb8991bf18d7e358d1ebe75340268ad",
-    "classifications3.json": "4a29aa72d3bd34918b73e50ecea740a3b78d9fc849464d79946d198fc7181984"
+    "words3.json": "39dff06591a57aa50ee8914cc438afae698fa8bbb5a4b07000b0a3518ace386c",
+    "common3.json": "896bc110e333d35a180de494d673a452a7376d8185cddb7550c9e3985d385418",
+    "problems.json": "60f3f59865701aa0b876b06abe0d0b6bec1f6dda7f809c5e27b46231311be04a",
+    "accept3.json": "da7794b3285367c79018c0c97e1c5bfc2c4188e023b291c455f440a67226a5dd",
+    "definitions3.json": "2e83b7e7803299285ea2ea165ab48941090c4450c1e65b8845b20aa23dbbcd2a",
+    "classifications3.json": "b9a0612fdd8f0c8bb861f04462631d258f94647b869d6c8d7210ae54c8077a67"
   }
 }
