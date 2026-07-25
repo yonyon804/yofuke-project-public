@@ -9,7 +9,8 @@
   "counts": {
     "playable": 4497,
     "prohibited": 115,
-    "real-but-out-of-scope": 22084,
+    "real-but-out-of-scope": 22066,
+    "unlinkable": 18,
     "unknown": "implicit-not-enumerable"
   },
   "playable_graph_words": 4497,
@@ -22,6 +23,6 @@
     "problems.json": "8536ad91da07e43cef702204c1da9c6d28351d829cdbf1be7ba4bac5d05bcdc8",
     "accept3.json": "779057d5c4c13186fcd6ffed826df2a4f852cb0e6840368d7a9b126e1948cb8f",
     "definitions3.json": "f1d4c9f1b6f50c265685f26ef58a5c6e46be8260de3db865a73ca91c71e5ff89",
-    "classifications3.json": "9d59be01f7bee6c85a93179b279ecd9aa284cfc1fb59870a3fb4bcb1af339e14"
+    "classifications3.json": "34a93804656dd93a327b4895911bb45a218ff167cc9e7c8a9adc5802ee9c6f3a"
   }
 }
