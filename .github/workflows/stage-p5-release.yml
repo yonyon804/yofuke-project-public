@@ -1,6 +1,11 @@
 name: Stage Kotonect Release
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/stage-p5-release.yml"
   push:
     branches:
       - publish/p5-kotonect-20260725
