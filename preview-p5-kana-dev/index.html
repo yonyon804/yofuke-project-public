@@ -6,10 +6,48 @@
     <meta name="theme-color" content="#14161c" />
     <meta name="robots" content="noindex,nofollow" />
     <title>コトネクト</title>
-    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana-dev/assets/index-DiSWNcCf.js"></script>
-    <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana-dev/assets/index-BP6X0P_R.css">
+    <style>
+      #asterism-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: #090b13;
+        color: #e8fbff;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Hiragino Sans", sans-serif;
+        font-size: clamp(1.15rem, 5vw, 1.65rem);
+        font-weight: 700;
+        letter-spacing: 0.32em;
+        text-indent: 0.32em;
+        opacity: 1;
+        transition: opacity 420ms ease;
+      }
+
+      #asterism-splash.is-leaving {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #asterism-splash {
+          transition-duration: 1ms;
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana-dev/assets/index-Cyhf2z6P.js"></script>
+    <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana-dev/assets/index-TGtJfjL3.css">
   </head>
   <body>
+    <div id="asterism-splash" role="img" aria-label="アステリズム">ASTERISM</div>
     <div id="root"></div>
+    <script>
+      window.setTimeout(() => {
+        document.getElementById("asterism-splash")?.classList.add("is-leaving");
+      }, 1300);
+      window.setTimeout(() => {
+        document.getElementById("asterism-splash")?.remove();
+      }, 1800);
+    </script>
   </body>
 </html>
