@@ -37,14 +37,22 @@
         pointer-events: none;
       }
 
+      /* 文字は最初は見えない。黒の中央からゆっくり浮かび上がる。 */
       #asterism-splash .splash-word {
         display: block;
-        opacity: 1;
-        transition: opacity 1100ms ease;
+        opacity: 0;
+        transition: opacity 1150ms ease-in;
       }
 
+      #asterism-splash.is-word-in .splash-word {
+        opacity: 1;
+      }
+
+      /* 浮かび上がる時よりさらにゆっくり薄くなって消える。 */
       #asterism-splash.is-fading .splash-word {
         opacity: 0;
+        transition-duration: 1350ms;
+        transition-timing-function: ease-out;
       }
 
       /* 黒いまま全体を透かし、背後のタイトルへつなぐ。 */
@@ -59,7 +67,7 @@
        * 端末では切り替わりが一瞬になって「雑」に見えていた。
        */
     </style>
-    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana-dev/assets/index-Civz2ohM.js"></script>
+    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana-dev/assets/index-DW8s3mtP.js"></script>
     <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana-dev/assets/index-CZyNGvAp.css">
   </head>
   <body>
@@ -71,23 +79,31 @@
       (function () {
         var splash = document.getElementById("asterism-splash");
         if (!splash) return;
-        // 段階の時間は端末設定で短縮しない。「急すぎて雑」を直すのが目的であり、
-        // ここで変化するのは移動ではなく透明度なので、動きを減らす設定でも速める
-        // 理由がない（2026-07-29・実機で切り替わりが一瞬になっていた件の是正）。
-        var holdWord = 2000;
-        var fadeWordMs = 1100;
-        var holdBlack = 620;
-        var leaveMs = 900;
+        // ようすけ指定の順序（2026-07-29）:
+        //   黒い画面の中央にASTERISMが浮かび上がる → ゆっくり薄くなって消える
+        //   → 完全な黒で少しだけ余韻 → タイトル画面へ移行。
+        // 段階の時間は端末設定で短縮しない。変化するのは透明度だけで、視差や
+        // 大きな移動を伴わないため速める理由がない。
+        var fadeInMs = 1150;   // 浮かび上がる
+        var holdWord = 1200;   // 名前を見せる
+        var fadeOutMs = 1350;  // ゆっくり消える
+        var holdBlack = 750;   // 完全な黒の余韻
+        var leaveMs = 850;     // タイトルへ移行
+        // 初期状態を確実に描画させてから遷移を始める（でないと即座に表示される）。
+        window.requestAnimationFrame(function () {
+          window.requestAnimationFrame(function () {
+            splash.classList.add("is-word-in");
+          });
+        });
         window.setTimeout(function () {
           splash.classList.add("is-fading");
-          // 文字が消えきってから、黒いまま一拍おいて全体を透かす。急がない。
           window.setTimeout(function () {
             splash.classList.add("is-leaving");
             window.setTimeout(function () {
               splash.remove();
             }, leaveMs);
-          }, fadeWordMs + holdBlack);
-        }, holdWord);
+          }, fadeOutMs + holdBlack);
+        }, fadeInMs + holdWord);
       })();
     </script>
   </body>
