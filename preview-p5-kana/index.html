@@ -7,6 +7,14 @@
     <meta name="robots" content="noindex,nofollow" />
     <title>コトネクト</title>
     <style>
+      /*
+       * 起動画面（FB-002・2026-07-29）。旧版は1.3秒で切り替わり「急すぎて雑」との指摘を受けた。
+       * 暗い画面でASTERISMを見せる → 文字だけゆっくり薄く消す → 黒のまま一拍おく →
+       * 全体を透かしてタイトルへ、の順にする。
+       * 白を挟む案は取りやめ、元の黒背景をそのまま活かすブラックアウトにした
+       * （ようすけ訂正・2026-07-29）。テンポは急がず、各段階をゆっくり送る。
+       * 数値はようすけの実機体感で最終決定する。
+       */
       #asterism-splash {
         position: fixed;
         inset: 0;
@@ -21,33 +29,67 @@
         letter-spacing: 0.32em;
         text-indent: 0.32em;
         opacity: 1;
-        transition: opacity 420ms ease;
+        transition: opacity 900ms ease;
       }
 
+      /* 文字だけをゆっくり消す。背景は黒のまま動かさない。 */
+      #asterism-splash.is-fading {
+        pointer-events: none;
+      }
+
+      #asterism-splash .splash-word {
+        display: block;
+        opacity: 1;
+        transition: opacity 1100ms ease;
+      }
+
+      #asterism-splash.is-fading .splash-word {
+        opacity: 0;
+      }
+
+      /* 黒いまま全体を透かし、背後のタイトルへつなぐ。 */
       #asterism-splash.is-leaving {
         opacity: 0;
         pointer-events: none;
       }
 
       @media (prefers-reduced-motion: reduce) {
-        #asterism-splash {
+        #asterism-splash,
+        #asterism-splash .splash-word {
           transition-duration: 1ms;
         }
       }
     </style>
-    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana/assets/index-CezdFgRm.js"></script>
-    <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana/assets/index-TGtJfjL3.css">
+    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana/assets/index-CKkcMeX2.js"></script>
+    <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana/assets/index-WsDVKhfr.css">
   </head>
   <body>
-    <div id="asterism-splash" role="img" aria-label="アステリズム">ASTERISM</div>
+    <div id="asterism-splash" role="img" aria-label="アステリズム">
+      <span class="splash-word">ASTERISM</span>
+    </div>
     <div id="root"></div>
     <script>
-      window.setTimeout(() => {
-        document.getElementById("asterism-splash")?.classList.add("is-leaving");
-      }, 1300);
-      window.setTimeout(() => {
-        document.getElementById("asterism-splash")?.remove();
-      }, 1800);
+      (function () {
+        var splash = document.getElementById("asterism-splash");
+        if (!splash) return;
+        var reduced =
+          window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        // 動きを減らす設定では余韻を演出せず、短く終わらせる。
+        var holdWord = reduced ? 500 : 2000;
+        var fadeWordMs = reduced ? 40 : 1100;
+        var holdBlack = reduced ? 60 : 620;
+        var leaveMs = reduced ? 30 : 900;
+        window.setTimeout(function () {
+          splash.classList.add("is-fading");
+          // 文字が消えきってから、黒いまま一拍おいて全体を透かす。急がない。
+          window.setTimeout(function () {
+            splash.classList.add("is-leaving");
+            window.setTimeout(function () {
+              splash.remove();
+            }, leaveMs);
+          }, fadeWordMs + holdBlack);
+        }, holdWord);
+      })();
     </script>
   </body>
 </html>
