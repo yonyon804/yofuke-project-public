@@ -53,15 +53,14 @@
         pointer-events: none;
       }
 
-      @media (prefers-reduced-motion: reduce) {
-        #asterism-splash,
-        #asterism-splash .splash-word {
-          transition-duration: 1ms;
-        }
-      }
+      /*
+       * 起動画面のフェードは、動きを減らす設定でも短縮しない。変化するのは透明度だけで
+       * 視差や大きな移動を伴わないため。旧版は1msへ潰しており、その設定を入れている
+       * 端末では切り替わりが一瞬になって「雑」に見えていた。
+       */
     </style>
-    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana/assets/index-CKkcMeX2.js"></script>
-    <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana/assets/index-WsDVKhfr.css">
+    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana/assets/index-AFeZhBrd.js"></script>
+    <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana/assets/index-CZyNGvAp.css">
   </head>
   <body>
     <div id="asterism-splash" role="img" aria-label="アステリズム">
@@ -72,13 +71,13 @@
       (function () {
         var splash = document.getElementById("asterism-splash");
         if (!splash) return;
-        var reduced =
-          window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        // 動きを減らす設定では余韻を演出せず、短く終わらせる。
-        var holdWord = reduced ? 500 : 2000;
-        var fadeWordMs = reduced ? 40 : 1100;
-        var holdBlack = reduced ? 60 : 620;
-        var leaveMs = reduced ? 30 : 900;
+        // 段階の時間は端末設定で短縮しない。「急すぎて雑」を直すのが目的であり、
+        // ここで変化するのは移動ではなく透明度なので、動きを減らす設定でも速める
+        // 理由がない（2026-07-29・実機で切り替わりが一瞬になっていた件の是正）。
+        var holdWord = 2000;
+        var fadeWordMs = 1100;
+        var holdBlack = 620;
+        var leaveMs = 900;
         window.setTimeout(function () {
           splash.classList.add("is-fading");
           // 文字が消えきってから、黒いまま一拍おいて全体を透かす。急がない。
