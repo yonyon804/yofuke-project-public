@@ -60,10 +60,9 @@
         transition-timing-function: ease-out;
       }
 
-      /* 黒いまま全体を透かし、背後のタイトルへつなぐ。 */
-      #asterism-splash.is-leaving {
-        opacity: 0;
-        pointer-events: none;
+      /* 商品イメージの段階では、ASTERISMの文字を場所ごと片付ける。 */
+      #asterism-splash.is-package .splash-word {
+        display: none;
       }
 
       /*
@@ -71,13 +70,114 @@
        * 視差や大きな移動を伴わないため。旧版は1msへ潰しており、その設定を入れている
        * 端末では切り替わりが一瞬になって「雑」に見えていた。
        */
+
+      /*
+       * 商品イメージとSTART（ようすけさん設計・2026-07-31）。
+       * ASTERISMが消えたあと商品イメージを見せ、1.5秒後にSTARTを出す。
+       * STARTを押すと2秒かけてブラックアウトしてタイトルへ渡す。
+       *
+       * STARTは「最初のユーザー操作」でもある。iOSは操作の外で音を出せないため、
+       * この一押しがBGM再生の起点になる（main.tsx の bindBgmToFirstGesture）。
+       */
+      #asterism-splash .splash-stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(0.9rem, 4vh, 1.8rem);
+        opacity: 0;
+        transition: opacity 900ms ease-in;
+        /* 画面から溢れさせない。9寸法すべてでSTARTまで収める。 */
+        max-height: 100dvh;
+        padding: max(env(safe-area-inset-top), 1rem) 1rem
+          max(env(safe-area-inset-bottom), 1rem);
+        pointer-events: none;
+      }
+
+      #asterism-splash.is-package .splash-stage {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      #asterism-splash .splash-package-art {
+        display: block;
+        /*
+         * 原版は1000×1000。そのまま出すと低い画面で溢れるので、
+         * 幅と高さの両方から上限を掛ける。STARTぶんの高さを必ず残す。
+         */
+        width: min(78vw, 58vh, 420px);
+        height: auto;
+        aspect-ratio: 1;
+        border-radius: 1rem;
+        box-shadow: 0 0 30px rgba(0, 229, 255, 0.28);
+      }
+
+      #asterism-splash .splash-start {
+        /* 押せることが分かる大きさ。最小タップ寸法を必ず満たす。 */
+        min-width: 12rem;
+        min-height: 56px;
+        padding: 0.7rem 2.4rem;
+        border: 2px solid #00e5ff;
+        border-radius: 999px;
+        background: #00e5ff;
+        color: #0c0a1b;
+        font-family: inherit;
+        font-size: clamp(1rem, 4.4vw, 1.25rem);
+        font-weight: 800;
+        letter-spacing: 0.22em;
+        text-indent: 0.22em;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 700ms ease-in;
+        /* 動きは光の強弱だけ。位置は動かさない（視差を作らない）。 */
+        animation: splash-start-pulse 2.4s ease-in-out infinite;
+      }
+
+      #asterism-splash.is-start-ready .splash-start {
+        opacity: 1;
+      }
+
+      @keyframes splash-start-pulse {
+        0%, 100% { box-shadow: 0 0 12px rgba(0, 229, 255, 0.45); }
+        50% { box-shadow: 0 0 26px rgba(0, 229, 255, 0.95); }
+      }
+
+      /* 動きを減らす設定でも止めない。光の振れ幅を小さく、周期をゆっくりにする。 */
+      @keyframes splash-start-pulse-reduced {
+        0%, 100% { box-shadow: 0 0 12px rgba(0, 229, 255, 0.45); }
+        50% { box-shadow: 0 0 17px rgba(0, 229, 255, 0.62); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #asterism-splash .splash-start {
+          animation: splash-start-pulse-reduced 4.8s ease-in-out infinite;
+        }
+      }
+
+      /* STARTのあと、2秒かけて黒へ沈める。背景は黒のまま動かさない。 */
+      #asterism-splash.is-blackout .splash-stage {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 2000ms ease-in-out;
+      }
     </style>
-    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana-dev/assets/index-BOD0bJfC.js"></script>
-    <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana-dev/assets/index-DI-j4phC.css">
+    <script type="module" crossorigin src="/yofuke-works-public/preview-p5-kana-dev/assets/index-DJJix855.js"></script>
+    <link rel="stylesheet" crossorigin href="/yofuke-works-public/preview-p5-kana-dev/assets/index-CznxCeWS.css">
   </head>
   <body>
-    <div id="asterism-splash" role="img" aria-label="アステリズム">
-      <span class="splash-word">ASTERISM</span>
+    <div id="asterism-splash">
+      <span class="splash-word" role="img" aria-label="アステリズム">ASTERISM</span>
+      <div class="splash-stage">
+        <img
+          class="splash-package-art"
+          src="/yofuke-works-public/preview-p5-kana-dev/assets/kotonect-package-main-pushout-1000-B6cCd-Qf.webp"
+          alt="コトネクトの商品イメージ"
+          width="1000"
+          height="1000"
+          decoding="async"
+        />
+        <button type="button" class="splash-start" id="splash-start">START</button>
+      </div>
     </div>
     <div id="root"></div>
     <script>
@@ -90,10 +190,16 @@
         // 段階の時間は端末設定で短縮しない。変化するのは透明度だけで、視差や
         // 大きな移動を伴わないため速める理由がない。
         var fadeInMs = 1150;   // 浮かび上がる
-        var holdWord = 1200;   // 名前を見せる
+        // 2026-07-31 ようすけさん指示: ASTERISMの表示を1秒短くする（1200→200）。
+        // 短くするのはここだけ。消える動作と黒の余韻はFB-002のまま変えない。
+        var holdWord = 200;    // 名前を見せる
         var fadeOutMs = 1350;  // ゆっくり消える
         var holdBlack = 750;   // 完全な黒の余韻
-        var leaveMs = 850;     // タイトルへ移行
+        // ここから2026-07-31に追加した段階。
+        var startDelayMs = 1500;  // 商品イメージを出してからSTARTが現れるまで
+        var blackoutMs = 2000;    // STARTのあと、黒へ沈むまで
+        var startBtn = document.getElementById("splash-start");
+
         // 初期状態を確実に描画させてから遷移を始める（でないと即座に表示される）。
         window.requestAnimationFrame(function () {
           window.requestAnimationFrame(function () {
@@ -103,12 +209,25 @@
         window.setTimeout(function () {
           splash.classList.add("is-fading");
           window.setTimeout(function () {
-            splash.classList.add("is-leaving");
+            // ASTERISMを片付け、商品イメージへ渡す。
+            splash.classList.add("is-package");
             window.setTimeout(function () {
-              splash.remove();
-            }, leaveMs);
+              splash.classList.add("is-start-ready");
+            }, startDelayMs);
           }, fadeOutMs + holdBlack);
         }, fadeInMs + holdWord);
+
+        // STARTは押されるまで待つ。押されたら2秒かけて黒へ沈め、タイトルへ渡す。
+        // このクリックが「最初のユーザー操作」になり、BGMの再生起点も兼ねる。
+        if (startBtn) {
+          startBtn.addEventListener("click", function () {
+            if (splash.classList.contains("is-blackout")) return;
+            splash.classList.add("is-blackout");
+            window.setTimeout(function () {
+              splash.remove();
+            }, blackoutMs);
+          });
+        }
       })();
     </script>
   </body>
