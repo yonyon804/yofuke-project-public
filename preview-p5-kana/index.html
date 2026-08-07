@@ -110,16 +110,30 @@
       }
 
       #asterism-splash .splash-start {
-        /* 商品ビジュアルの中央へ重ね、光だけで浮かび上がらせる。 */
+        /*
+         * 「パズル」のブロックの下、床の余白へ置く（Issue #292・ようすけさん指示）。
+         *
+         * 以前は絵の中央へ重ねていたが、ちょうどブロックとネクトの上に乗って
+         * 絵柄を隠していた。画面下部には床の余白が広く空いているのでそこへ下ろす。
+         *
+         * 位置は**画面の下端から**取る。起動ビジュアルは `object-fit: cover` で、
+         * 寸法ごとに切り取られる位置が変わるため「画面の何%」では絵との関係が定まらない。
+         * どの寸法でも切り取り後の下端は必ず床（＝余白）なので、下端基準なら
+         * 絵柄に重ならない。Safe Areaぶんは足して、ホームインジケータに重ねない。
+         *
+         * ブロックの下端との空き・画面内・44px以上は `scripts/qa-splash-start.mjs` が
+         * 9寸法で実測する。ブロックの位置は画素から毎回検出するので、絵を差し替えても
+         * 測り直せる。
+         */
         position: absolute;
         z-index: 1;
         left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
+        bottom: max(env(safe-area-inset-bottom), 3.2vh, 0.4rem);
+        transform: translateX(-50%);
         pointer-events: none;
         /* 押せることが分かる大きさ。最小タップ寸法を必ず満たす。 */
         min-width: 12rem;
-        min-height: 56px;
+        min-height: 52px;
         padding: 0.7rem 2.4rem;
         border: 2px solid #00e5ff;
         border-radius: 999px;
@@ -166,7 +180,7 @@
         transition: opacity 2000ms ease-in-out;
       }
     </style>
-    <script type="module" crossorigin src="/yofuke-project-public/preview-p5-kana/assets/index-F8qwaM09.js"></script>
+    <script type="module" crossorigin src="/yofuke-project-public/preview-p5-kana/assets/index-DhZdaorR.js"></script>
   </head>
   <body>
     <div id="asterism-splash">
@@ -204,28 +218,75 @@
         var blackoutMs = 2000;    // STARTのあと、黒へ沈むまで
         var startBtn = document.getElementById("splash-start");
 
+        // 2回目以降はタップで演出を飛ばせる（判断#7・ようすけさん承認 2026-08-06）。
+        // 初回は「ゆっくり」の指定どおり最後まで見せる（FB-002）。2回目からは、
+        // 触ったらSTARTが押せる状態まで一気に進める。STARTを押す操作自体は残すので、
+        // 「最初のユーザー操作＝BGMの再生起点」という前提は変わらない。
+        var SEEN_KEY = "p5_splash_seen";
+        var seenBefore = false;
+        try {
+          seenBefore = window.localStorage.getItem(SEEN_KEY) === "1";
+        } catch (e) {
+          // ストレージが使えない環境では毎回初回扱い（演出を省かない側へ倒す）。
+          seenBefore = false;
+        }
+        var markSeen = function () {
+          try {
+            window.localStorage.setItem(SEEN_KEY, "1");
+          } catch (e) {
+            /* 保存できなくても演出は成立する */
+          }
+        };
+
+        // 予約したタイマーは飛ばす時にまとめて解除する（飛ばした後に遅れて発火して
+        // クラスが戻る／二重に付くのを防ぐ）。
+        var timers = [];
+        var later = function (fn, ms) {
+          timers.push(window.setTimeout(fn, ms));
+        };
+        var skipToStart = function () {
+          for (var i = 0; i < timers.length; i += 1) window.clearTimeout(timers[i]);
+          timers = [];
+          splash.classList.add("is-word-in");
+          splash.classList.add("is-fading");
+          splash.classList.add("is-package");
+          splash.classList.add("is-start-ready");
+        };
+
         // 初期状態を確実に描画させてから遷移を始める（でないと即座に表示される）。
         window.requestAnimationFrame(function () {
           window.requestAnimationFrame(function () {
             splash.classList.add("is-word-in");
           });
         });
-        window.setTimeout(function () {
+        later(function () {
           splash.classList.add("is-fading");
-          window.setTimeout(function () {
+          later(function () {
             // ASTERISMを片付け、商品イメージへ渡す。
             splash.classList.add("is-package");
-            window.setTimeout(function () {
+            later(function () {
               splash.classList.add("is-start-ready");
             }, startDelayMs);
           }, fadeOutMs + holdBlack);
         }, fadeInMs + holdWord);
+
+        if (seenBefore) {
+          splash.addEventListener("click", function (ev) {
+            // STARTを押した時はここで飛ばさない（下のSTART処理へ渡す）。
+            if (splash.classList.contains("is-blackout")) return;
+            if (startBtn && (ev.target === startBtn || startBtn.contains(ev.target))) return;
+            if (splash.classList.contains("is-start-ready")) return;
+            skipToStart();
+          });
+        }
 
         // STARTは押されるまで待つ。押されたら2秒かけて黒へ沈め、タイトルへ渡す。
         // このクリックが「最初のユーザー操作」になり、BGMの再生起点も兼ねる。
         if (startBtn) {
           startBtn.addEventListener("click", function () {
             if (splash.classList.contains("is-blackout")) return;
+            // ここまで来たら演出は一度見せ切った。次回からはタップで飛ばせる。
+            markSeen();
             splash.classList.add("is-blackout");
             window.setTimeout(function () {
               splash.remove();
