@@ -1,1 +1,0 @@
-import{n as e}from"./freshStart-DsFkezc_.js";e(),window.location.replace(new URL(`../`,window.location.href).toString());
