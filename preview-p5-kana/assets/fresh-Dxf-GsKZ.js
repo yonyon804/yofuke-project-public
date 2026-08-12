@@ -1,0 +1,1 @@
+import{n as e}from"./freshStart-DUBBt4cl.js";e(),window.location.replace(new URL(`../`,window.location.href).toString());
