@@ -3,122 +3,73 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>カズネクト 試作1</title>
+<title>カズネクト 試作2（交差）</title>
 <!--
-  カズネクト 試作1
+  カズネクト 試作2 — 交差型
 
-  確かめたいことは1つだけ。**一つ目の解を見つけたあと、別解を探すのが楽しいか**
-  （企画正本 docs/KAZUNECT_CONCEPT.md §11-2 / §11-3 / §11-6）。
+  試作1（一本の式）は総当たりが最適戦略になっていた。ようすけさん判定
+  「+-+×を順番にやっていく総当たりは作業であって面白くはない」。
+  1つのマスを縦と横の両方の式に属させ、総当たりを割に合わなくする。
 
-  したがって、章・セーブ・称号・音・ネクトの演出は入れていない。判定に要らないものを
-  作ると、面白くなかった時に「演出のせいかもしれない」と言い訳が残る。
+  確かめたいのは1点だけ。**推理して繋ぐのが面白いか。**
+  章・セーブ・称号・音・ネクトの演出は入れない。面白くなかった時に
+  「演出のせいかもしれない」という言い訳を残さないため。
 
-  正解判定はこの画面に無い。生成器が作った対応表を引くだけ（puzzles.js の accepted）。
-  同じ計算規則を画面側にもう一度書くと片方だけ直されてズレる。判定は生成側に一本化する。
+  正解判定はこの画面に無い。生成器が作った対応表を引くだけ。
+  同じ計算規則を画面側にもう一度書くと片方だけ直されてズレる（INC-2026-08-13-005）。
+
+  見た目は `_nect-shared/nect.css`（コトネクトのアートディレクションを共通層へ切り出したもの）。
 -->
+<!-- 制作時は共通層を直接読む。公開時だけ配信用の複製を同じ階層へ置く（AGENTS §4-2 の原版と配信用実体）。 -->
+<link rel="stylesheet" href="nect.css">
 <style>
-  :root {
-    --bg: #11141c;
-    --panel: #1a1f2b;
-    --line: #2c3446;
-    --text: #e8ecf5;
-    --dim: #8d97ab;
-    --blank: #39445c;
-    --accent: #55d6c2;
-    --accent-dim: #2f6f68;
-    --warn: #e8735a;
+  /* 盤面。5×5のうち、横1行と縦1列だけにマスが載る。 */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(5, var(--cell));
+    grid-template-rows: repeat(5, var(--cell));
+    gap: 0.35rem;
+    --cell: clamp(2.4rem, 15vw, 3.5rem);
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
-    display: flex; flex-direction: column; min-height: 100dvh;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
-  header {
-    display: flex; justify-content: space-between; align-items: baseline;
-    padding: 14px 18px 6px; font-size: 13px; color: var(--dim);
-  }
-  main { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 22px; padding: 8px 16px; }
+  .board .nect-tile { width: var(--cell); height: var(--cell); font-size: clamp(1.1rem, 6vw, 1.7rem); }
+  .board .slot-empty { width: var(--cell); height: var(--cell); }
 
-  /* 式 */
-  .equation { display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .tok {
-    min-width: 46px; height: 58px; display: flex; align-items: center; justify-content: center;
-    font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums;
-  }
-  .tok.blank {
-    border-radius: 12px; background: var(--panel); border: 2px dashed var(--blank);
-    color: var(--accent); cursor: pointer; transition: border-color .15s, background .15s;
-  }
-  .tok.blank.filled { border-style: solid; border-color: var(--accent-dim); }
-  .tok.blank.sel { border-color: var(--accent); background: #202737; }
-  .tok.fixed { color: var(--text); }
-  .tok.op { color: var(--dim); }
+  /* 交差マス。2つの式が通る場所であることを、常時わかるようにしておく。 */
+  .is-cross { box-shadow: var(--glow-soft), var(--bevel); }
 
-  /* 繋がった瞬間。企画正本 §4-3「接続成功」を最小限で表現する */
-  @keyframes connect {
-    0%   { transform: scale(1);    filter: none; }
-    35%  { transform: scale(1.14); filter: drop-shadow(0 0 14px var(--accent)); }
-    100% { transform: scale(1);    filter: none; }
+  .found-list {
+    display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; justify-content: center;
+    font-size: var(--fs-aux); color: var(--dim); min-height: 1.2em;
   }
-  .equation.ok .tok { animation: connect .5s ease; }
-  @keyframes nudge { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-  .equation.ng { animation: nudge .28s ease; }
-  .equation.dup .tok.blank { border-color: var(--warn); }
-
-  /* 発見状況 */
-  .found { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .pips { display: flex; gap: 8px; }
-  .pip { width: 11px; height: 11px; border-radius: 50%; background: var(--blank); transition: background .25s; }
-  .pip.on { background: var(--accent); }
-  .found-list { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center; font-size: 14px; color: var(--dim); min-height: 20px; }
-  .msg { font-size: 14px; height: 20px; color: var(--accent); }
-  .msg.warn { color: var(--warn); }
-
-  /* 選択肢。企画正本 §3-2 の14種類を常設する */
-  .pad { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 16px; background: var(--panel); border-top: 1px solid var(--line); }
-  .row { display: flex; gap: 8px; justify-content: center; }
-  button {
-    font: inherit; color: var(--text); background: #232b3b; border: 1px solid var(--line);
-    border-radius: 12px; min-width: 44px; min-height: 48px; flex: 1; max-width: 68px;
-    font-size: 20px; font-weight: 600; cursor: pointer;
-  }
-  button:active { background: #2e3850; }
-  .row.ops button { color: var(--accent); }
-  .nav { display: flex; gap: 8px; justify-content: center; padding: 0 12px 14px; background: var(--panel); }
-  .nav button { max-width: none; font-size: 15px; min-height: 44px; font-weight: 500; color: var(--dim); }
-  .nav button.primary { color: var(--bg); background: var(--accent); border-color: var(--accent); }
-  .done { text-align: center; color: var(--accent); font-size: 15px; }
 </style>
 </head>
 <body>
-<header>
-  <span id="progress"></span>
-  <span id="band"></span>
-</header>
+<div class="nect-app">
+  <header class="nect-header">
+    <span id="progress"></span>
+    <span id="band"></span>
+  </header>
 
-<main>
-  <div class="equation" id="equation"></div>
-
-  <div class="found">
-    <div class="pips" id="pips"></div>
-    <div class="msg" id="msg"></div>
+  <main class="nect-stage">
+    <div class="board" id="board"></div>
+    <div class="nect-pips" id="pips"></div>
+    <div class="nect-msg" id="msg"></div>
     <div class="found-list" id="foundList"></div>
+    <p class="nect-note">たての式とよこの式が、まん中のマスで繋がっている</p>
+  </main>
+
+  <div class="nect-pad">
+    <div class="nect-pad__row" id="row1"></div>
+    <div class="nect-pad__row" id="row2"></div>
+    <div class="nect-pad__row nect-pad__row--ops" id="row3"></div>
   </div>
-</main>
-
-<div class="pad">
-  <div class="row" id="row1"></div>
-  <div class="row" id="row2"></div>
-  <div class="row ops" id="row3"></div>
-</div>
-<div class="nav">
-  <button id="clear">とりけし</button>
-  <button id="next" class="primary">つぎの問題</button>
+  <div class="nect-actions">
+    <button id="clear">とりけし</button>
+    <button id="next" class="is-primary">つぎの問題</button>
+  </div>
 </div>
 
-<script src="puzzles.js"></script>
+<script src="cross-puzzles.js"></script>
 <script>
 (function () {
   "use strict";
@@ -126,24 +77,45 @@
   const $ = (id) => document.getElementById(id);
 
   let index = 0;
-  let tokens = [];     // 現在の盤面
-  let blanks = [];     // 空欄の位置
-  let selected = 0;    // いま入力対象の空欄（blanks の添字）
-  let found = [];      // 見つけた解の番号
+  let cells = {};      // "行,列" → トークン
+  let blanks = [];      // 空欄のキー
+  let selected = 0;
+  let found = [];
 
   const puzzle = () => PUZZLES[index];
+  const isOp = (t) => ["+", "-", "×", "÷"].includes(t);
+
+  /*
+   * 表示だけの置き換え。データは "-" のまま扱う（対応表のキーが変わると判定が壊れる）。
+   * 半角ハイフンは他の記号より細く短く、`+ × ÷ =` と並ぶと1つだけ弱く見える。
+   */
+  const glyph = (t) => (t === "-" ? "\u2212" : t);
+
+  /** 実際にマスがある範囲だけを描く。5×5のまま描くと、空マスのぶん盤面が片側へ寄る。 */
+  function bounds(cells) {
+    const rows = [], cols = [];
+    for (const k of Object.keys(cells)) {
+      const [r, c] = k.split(",").map(Number);
+      rows.push(r); cols.push(c);
+    }
+    return { r0: Math.min(...rows), r1: Math.max(...rows), c0: Math.min(...cols), c1: Math.max(...cols) };
+  }
 
   function load(i) {
     index = i;
     const p = puzzle();
-    tokens = p.template.slice();
-    blanks = [];
-    tokens.forEach((t, k) => { if (t === "_") blanks.push(k); });
+    cells = { ...p.cells };
+    blanks = p.blanks.slice();
     selected = 0;
     found = [];
-    $("msg").textContent = "";
-    $("msg").className = "msg";
+    setMsg("", false);
     render();
+  }
+
+  function setMsg(text, warn) {
+    const el = $("msg");
+    el.textContent = text;
+    el.className = "nect-msg" + (warn ? " nect-msg--warn" : "");
   }
 
   function render() {
@@ -151,108 +123,118 @@
     $("progress").textContent = `問題 ${index + 1} / ${PUZZLES.length}`;
     $("band").textContent = p.band;
 
-    const eq = $("equation");
-    eq.className = "equation";
-    eq.innerHTML = "";
-    tokens.forEach((t, k) => {
-      const el = document.createElement("div");
-      const blankPos = blanks.indexOf(k);
-      if (blankPos !== -1) {
-        el.className = "tok blank" + (t !== "_" ? " filled" : "") + (blankPos === selected ? " sel" : "");
-        el.textContent = t === "_" ? "" : t;
-        el.addEventListener("click", () => { selected = blankPos; render(); });
-      } else {
-        el.className = "tok fixed" + (/[+\-×÷=]/.test(t) ? " op" : "");
-        el.textContent = t;
+    const board = $("board");
+    board.innerHTML = "";
+    const b = bounds(p.cells);
+    board.style.gridTemplateColumns = `repeat(${b.c1 - b.c0 + 1}, var(--cell))`;
+    board.style.gridTemplateRows = `repeat(${b.r1 - b.r0 + 1}, var(--cell))`;
+    for (let r = b.r0; r <= b.r1; r++) {
+      for (let c = b.c0; c <= b.c1; c++) {
+        const key = `${r},${c}`;
+        const t = cells[key];
+        if (t === undefined) {
+          const gap = document.createElement("div");
+          gap.className = "slot-empty";
+          board.appendChild(gap);
+          continue;
+        }
+        const el = document.createElement("div");
+        const blankAt = blanks.indexOf(key);
+        const cross = r === p.ri && c === p.ci;
+        if (blankAt !== -1) {
+          el.className = "nect-tile nect-tile--blank"
+            + (t !== "_" ? " is-filled" : "")
+            + (blankAt === selected ? " is-selected" : "")
+            + (cross ? " is-cross" : "");
+          el.textContent = t === "_" ? "" : glyph(t);
+          el.addEventListener("click", () => { selected = blankAt; render(); });
+        } else {
+          el.className = "nect-tile nect-tile--fixed" + (isOp(t) || t === "=" ? " nect-tile--op" : "");
+          el.textContent = glyph(t);
+        }
+        board.appendChild(el);
       }
-      eq.appendChild(el);
-    });
+    }
 
     const pips = $("pips");
     pips.innerHTML = "";
     for (let k = 0; k < p.solutions.length; k++) {
       const pip = document.createElement("div");
-      pip.className = "pip" + (found.includes(k) ? " on" : "");
+      pip.className = "nect-pip" + (found.includes(k) ? " is-on" : "");
       pips.appendChild(pip);
     }
 
-    $("foundList").innerHTML = found.map((k) => `<span>${p.solutions[k]}</span>`).join("");
+    $("foundList").innerHTML = found.map((k) => {
+      const s = p.solutions[k];
+      const h = [0, 1, 2, 3, 4].map((n) => glyph(s[`${p.ri},${n}`])).join("");
+      const v = [0, 1, 2, 3, 4].map((n) => glyph(s[`${n},${p.ci}`])).join("");
+      return `<span>${h}／${v}</span>`;
+    }).join("");
+
     $("next").textContent = index + 1 >= PUZZLES.length ? "さいしょへ" : "つぎの問題";
   }
 
   function place(choice) {
     if (blanks.length === 0) return;
-    tokens[blanks[selected]] = choice;
-    // 次の空欄へ自動で送る。全部埋まっていればその場に留まる。
-    const nextEmpty = blanks.findIndex((k) => tokens[k] === "_");
+    cells[blanks[selected]] = choice;
+    const nextEmpty = blanks.findIndex((k) => cells[k] === "_");
     if (nextEmpty !== -1) selected = nextEmpty;
     render();
-    if (blanks.every((k) => tokens[k] !== "_")) check();
+    if (blanks.every((k) => cells[k] !== "_")) check();
   }
 
   function check() {
     const p = puzzle();
-    const key = tokens.join(" ");
+    const key = blanks.map((k) => cells[k]).join(" ");
     const hit = p.accepted[key];
-    const eq = $("equation");
-    const msg = $("msg");
+    const board = $("board");
 
     if (hit === undefined) {
-      eq.classList.add("ng");
-      msg.textContent = "まだ繋がらない";
-      msg.className = "msg warn";
-      setTimeout(() => eq.classList.remove("ng"), 300);
+      board.classList.add("nect-rejected");
+      setMsg("まだ噛み合わない", true);
+      setTimeout(() => board.classList.remove("nect-rejected"), 300);
       return;
     }
     if (found.includes(hit)) {
-      eq.classList.add("dup");
-      msg.textContent = "それはもう見つけた繋ぎ方";
-      msg.className = "msg warn";
-      setTimeout(() => eq.classList.remove("dup"), 600);
+      setMsg("それはもう見つけた繋ぎ方", true);
       return;
     }
 
     found.push(hit);
     render();
-    eq.classList.add("ok");
+    $("board").classList.add("nect-connected");
     const left = p.solutions.length - found.length;
-    msg.textContent = left === 0
-      ? "ぜんぶ繋がった"
-      : `繋がった　のこり ${left} 通り`;
-    msg.className = "msg";
+    setMsg(left === 0 ? "ぜんぶ繋がった" : `繋がった　のこり ${left} 通り`, false);
 
     setTimeout(() => {
-      eq.classList.remove("ok");
-      if (left > 0) clearBlanks(); // 続けて別解を探せるよう盤面を戻す
+      $("board").classList.remove("nect-connected");
+      if (left > 0) clearBlanks();
     }, 700);
   }
 
   function clearBlanks() {
-    blanks.forEach((k) => { tokens[k] = "_"; });
+    blanks.forEach((k) => { cells[k] = "_"; });
     selected = 0;
     render();
   }
 
-  const DIGITS = ["1", "2", "3", "4", "5"];
-  const DIGITS2 = ["6", "7", "8", "9"];
-  const OPS = ["+", "-", "×", "÷", "="];
   const fill = (row, list) => {
     list.forEach((c) => {
       const b = document.createElement("button");
-      b.textContent = c;
+      b.textContent = glyph(c);
       b.addEventListener("click", () => place(c));
       row.appendChild(b);
     });
   };
-  fill($("row1"), DIGITS);
-  fill($("row2"), DIGITS2);
-  fill($("row3"), OPS);
+  fill($("row1"), ["1", "2", "3", "4", "5"]);
+  fill($("row2"), ["6", "7", "8", "9"]);
+  fill($("row3"), ["+", "-", "×", "÷", "="]);
 
-  $("clear").addEventListener("click", () => { clearBlanks(); $("msg").textContent = ""; });
+  $("clear").addEventListener("click", () => { clearBlanks(); setMsg("", false); });
   $("next").addEventListener("click", () => load((index + 1) % PUZZLES.length));
 
   if (PUZZLES.length === 0) {
-    document.querySelector("main").innerHTML = '<div class="done">問題データが読み込めていません（puzzles.js）</div>';
+    $("msg").textContent = "問題データが読み込めていません（cross-puzzles.js）";
   } else {
     load(0);
   }

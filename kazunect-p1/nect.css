@@ -1,0 +1,301 @@
+/*
+ * ネクトシリーズ共通の見た目（2026-08-13新設）
+ *
+ * ## これは何か
+ *
+ * コトネクトのアートディレクション「C：アミューズメント系」（ようすけさん選定・2026-07-25）
+ * を、次作以降が**作り直さずに使える形**へ切り出したもの。暗い紫紺にネオンが光る、
+ * ゲームセンター的な高揚感。色・発光・面取り・文字寸法はすべてここのトークンで決める。
+ *
+ * ようすけさん指示（2026-08-13）:
+ * 「コトネクトで培った土台を存分に活用しながらさらにブラッシュアップしていき、
+ *   3作目は更に楽に作れるようにね」
+ *
+ * ## 何を共有し、何を共有しないか
+ *
+ * **共有する:** 色、発光、面取り、書体、文字寸法、タップ寸法、マス、選択肢パッド、接続演出。
+ *   どの作品でも同じであるべきで、作品ごとに作り直す理由が無いもの。
+ *
+ * **共有しない:** 盤面の並べ方、遊びの規則、判定、問題データ。作品ごとに違う。
+ *   ここへ入れると「共通のつもりで作品固有」が混ざり、次作が外せなくなる。
+ *
+ * ## いまの状態（正直に書く）
+ *
+ * **コトネクト本体はまだこのファイルを読んでいない。** 出荷済みのゲームのCSSを
+ * 差し替えるのは別の作業で、いま触ると販売中の成果物に手を入れることになる。
+ * したがって現状は**コトネクトのトークンを写したもの**であり、コピーである。
+ *
+ * コピーは必ず古くなる（`INCIDENTS.md` INC-2026-08-13-005 がまさにそれ）。
+ * そのため `tools/check-tokens.mjs` がコトネクト側のトークンと突き合わせて、
+ * ズレたら落ちるようにしてある。コトネクトを次に触る時に、あちらをこちらへ寄せる。
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* 色 */
+  --bg: #0c0a1b;
+  --fg: #f2f0ff;
+  --dim: #8f88c0;
+  --accent: #00e5ff;   /* ネオンシアン＝主役 */
+  --hot: #ff2e88;      /* ネオンマゼンタ＝強調・記録更新 */
+  --box-bg: #171233;
+  --box-border: #322a72;
+  --danger: #ff5470;
+  --ok: var(--accent);
+
+  /* 発光と面取り（アミューズメント感の核） */
+  --glow: 0 0 14px rgba(0, 229, 255, 0.55);
+  --glow-soft: 0 0 10px rgba(0, 229, 255, 0.32);
+  --glow-hot: 0 0 14px rgba(255, 46, 136, 0.55);
+  --bevel: inset 0 -3px 0 rgba(0, 0, 0, 0.45);
+  --speed: 140ms;
+
+  /*
+   * 文字スケールとタップ寸法。
+   *
+   * **下限を絶対値で決め、すべての font-size がこれを参照する。**
+   * 個々の指定が独自に clamp(…vh…) を持つと、画面が低いほど縮む性質を持ちながら
+   * 下限だけがばらばらになり、低い画面で10〜13pxまで縮む箇所が繰り返し現れる。
+   * コトネクトで実際に起き、見つかるたびにその箇所だけ直していた。
+   * 生の vh を font-size へ直接書かない。
+   */
+  --fs-min-aux: 13px;   /* 補助・注釈・装飾ラベルの下限 */
+  --fs-min-body: 14px;  /* 読ませる文・操作ラベルの下限 */
+  --tap-min: 44px;      /* 主要操作の最小タップ寸法 */
+
+  --fs-aux: clamp(var(--fs-min-aux), 2vh, 0.85rem);
+  --fs-body: clamp(var(--fs-min-body), 2.2vh, 0.95rem);
+  --fs-strong: clamp(var(--fs-min-body), 2.4vh, 1.05rem);
+  --fs-lead: clamp(1rem, 3vh, 1.3rem);
+  --fs-head: clamp(1.2rem, 4vh, 1.7rem);
+  --fs-hero: clamp(1.6rem, 7vh, 2.8rem);
+}
+
+* { box-sizing: border-box; }
+
+/*
+ * 日本語字形を必ず出すための書体指定。
+ *
+ * 日本語書体を各OSぶん名指しし、汎用フォールバックへ落ちる前に必ず日本語書体へ当てる。
+ * 曖昧な system-ui を日本語書体より前に置かない。コトネクトでは、これを怠っていた時に
+ * Chromiumが**中国語書体 WenQuanYi Zen Hei** を選び、画面全体が中国語字形で描かれていた
+ * （ようすけさん指摘「変な漢字になっている」）。`<html lang="ja">` は中国語専用書体に効かない。
+ */
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP",
+    "Yu Gothic Medium", "Yu Gothic", YuGothic, Meiryo, "IPAexGothic", "IPAPGothic",
+    "IPAGothic", "TakaoPGothic", sans-serif;
+  width: 100%;
+}
+
+/*
+ * フォーム部品は既定で書体を継承しない（UAスタイルが独自の font を当てる）。
+ * ゲームの文字はほとんどがボタン上にあるため、抜けると画面全体に影響する。
+ */
+button, input, select, textarea, optgroup { font-family: inherit; }
+
+code, kbd, samp, pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans Mono CJK JP",
+    "Noto Sans JP", "IPAGothic", monospace;
+}
+
+/* ------------------------------------------------------------------ *
+ * マス — コトネクトの `.kana-box` に相当。文字や数字を1つ収める枠。
+ * ------------------------------------------------------------------ */
+
+.nect-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-hero);
+  font-weight: 800;
+  background: var(--box-bg);
+  border: 2px solid var(--box-border);
+  border-radius: 0.6rem;
+  color: var(--fg);
+  box-shadow: var(--bevel);
+  transition: transform var(--speed) ease, box-shadow var(--speed) ease,
+    border-color var(--speed) ease, color var(--speed) ease;
+}
+
+/* 空欄。埋める場所であることを枠線で示す。 */
+.nect-tile--blank {
+  border-style: dashed;
+  border-color: var(--box-border);
+  color: var(--accent);
+  cursor: pointer;
+}
+.nect-tile--blank.is-filled { border-style: solid; }
+
+/* いま入力対象になっている空欄。呼吸で「ここ」を示す。 */
+.nect-tile--blank.is-selected {
+  border-color: var(--accent);
+  animation: nect-breathe 1.6s ease-in-out infinite;
+}
+
+/* 盤面に最初から置かれているマス。操作対象ではない。 */
+.nect-tile--fixed { cursor: default; }
+.nect-tile--op { color: var(--dim); }
+
+@keyframes nect-breathe {
+  0%, 100% { box-shadow: var(--glow-soft), var(--bevel); }
+  50%      { box-shadow: var(--glow), var(--bevel); }
+}
+
+/*
+ * 繋がった瞬間。ネクトシリーズの核（企画正本「繋ぐ」）を、操作の手応えとして返す。
+ * 左から順に光らせて、関係が通ったことを見せる。
+ */
+.nect-connected .nect-tile { animation: nect-hit 420ms ease-out; }
+.nect-connected .nect-tile:nth-child(2) { animation-delay: 60ms; }
+.nect-connected .nect-tile:nth-child(3) { animation-delay: 120ms; }
+.nect-connected .nect-tile:nth-child(4) { animation-delay: 180ms; }
+.nect-connected .nect-tile:nth-child(5) { animation-delay: 240ms; }
+
+@keyframes nect-hit {
+  0%   { transform: translateY(0) scale(1); }
+  35%  {
+    transform: translateY(-4px) scale(1.06);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.75), var(--bevel);
+  }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* 噛み合わなかった時。赤い×だけで終わらせず、揃わない感じを短く返す。 */
+@keyframes nect-nudge {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-5px); }
+  75%      { transform: translateX(5px); }
+}
+.nect-rejected { animation: nect-nudge 280ms ease; }
+
+/* ------------------------------------------------------------------ *
+ * 選択肢パッド — 画面下に常設する。作品ごとに中身は変わるが、寸法と質感は共通。
+ * ------------------------------------------------------------------ */
+
+.nect-pad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem calc(0.7rem + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(23, 18, 51, 0) 0%, var(--box-bg) 22%);
+  border-top: 1px solid var(--box-border);
+}
+
+.nect-pad__row {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.nect-pad button {
+  flex: 1;
+  max-width: 4.2rem;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  font-size: var(--fs-lead);
+  font-weight: 700;
+  color: var(--fg);
+  background: var(--box-bg);
+  border: 1px solid var(--box-border);
+  border-radius: 0.5rem;
+  box-shadow: var(--bevel);
+  cursor: pointer;
+  transition: transform var(--speed) ease, box-shadow var(--speed) ease;
+}
+.nect-pad button:active {
+  transform: translateY(1px);
+  box-shadow: var(--glow-soft), var(--bevel);
+}
+.nect-pad__row--ops button { color: var(--accent); }
+
+/* ------------------------------------------------------------------ *
+ * 画面の骨格と補助表示
+ * ------------------------------------------------------------------ */
+
+.nect-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+}
+
+/*
+ * ヘッダーは**折り返しを許す**。1行固定にすると、中身が横幅を超えた時に
+ * 外へ押し出されるだけで消える。コトネクトで実際に起き、9寸法中8寸法で
+ * 「設定・情報」がタップ不能になっていた。ラベルを短くする対症療法は、
+ * 文字数やフォントが変われば必ず再発するので採らない。
+ */
+.nect-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 0.35rem;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem 0.3rem;
+  font-size: var(--fs-aux);
+  color: var(--dim);
+}
+
+.nect-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  padding: 0.5rem 0.8rem;
+}
+
+/* 発見の目印 */
+.nect-pips { display: flex; gap: 0.5rem; }
+.nect-pip {
+  width: 0.7rem; height: 0.7rem; border-radius: 50%;
+  background: var(--box-border);
+  transition: background var(--speed) ease, box-shadow var(--speed) ease;
+}
+.nect-pip.is-on { background: var(--accent); box-shadow: var(--glow-soft); }
+
+.nect-msg {
+  min-height: 1.4em;
+  font-size: var(--fs-strong);
+  color: var(--accent);
+  text-align: center;
+}
+.nect-msg--warn { color: var(--hot); }
+
+.nect-note { font-size: var(--fs-aux); color: var(--dim); text-align: center; }
+
+.nect-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0 0.7rem calc(0.7rem + env(safe-area-inset-bottom));
+  background: var(--box-bg);
+}
+.nect-actions button {
+  flex: 1;
+  min-height: var(--tap-min);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  border: 1px solid var(--box-border);
+  background: var(--box-bg);
+  color: var(--dim);
+}
+.nect-actions button.is-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #0b1020;
+  box-shadow: var(--glow-soft);
+}
