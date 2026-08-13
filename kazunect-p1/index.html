@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>カズネクト 試作1</title>
+<!--
+  カズネクト 試作1
+
+  確かめたいことは1つだけ。**一つ目の解を見つけたあと、別解を探すのが楽しいか**
+  （企画正本 docs/KAZUNECT_CONCEPT.md §11-2 / §11-3 / §11-6）。
+
+  したがって、章・セーブ・称号・音・ネクトの演出は入れていない。判定に要らないものを
+  作ると、面白くなかった時に「演出のせいかもしれない」と言い訳が残る。
+
+  正解判定はこの画面に無い。生成器が作った対応表を引くだけ（puzzles.js の accepted）。
+  同じ計算規則を画面側にもう一度書くと片方だけ直されてズレる。判定は生成側に一本化する。
+-->
+<style>
+  :root {
+    --bg: #11141c;
+    --panel: #1a1f2b;
+    --line: #2c3446;
+    --text: #e8ecf5;
+    --dim: #8d97ab;
+    --blank: #39445c;
+    --accent: #55d6c2;
+    --accent-dim: #2f6f68;
+    --warn: #e8735a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    display: flex; flex-direction: column; min-height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 14px 18px 6px; font-size: 13px; color: var(--dim);
+  }
+  main { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 22px; padding: 8px 16px; }
+
+  /* 式 */
+  .equation { display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tok {
+    min-width: 46px; height: 58px; display: flex; align-items: center; justify-content: center;
+    font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .tok.blank {
+    border-radius: 12px; background: var(--panel); border: 2px dashed var(--blank);
+    color: var(--accent); cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .tok.blank.filled { border-style: solid; border-color: var(--accent-dim); }
+  .tok.blank.sel { border-color: var(--accent); background: #202737; }
+  .tok.fixed { color: var(--text); }
+  .tok.op { color: var(--dim); }
+
+  /* 繋がった瞬間。企画正本 §4-3「接続成功」を最小限で表現する */
+  @keyframes connect {
+    0%   { transform: scale(1);    filter: none; }
+    35%  { transform: scale(1.14); filter: drop-shadow(0 0 14px var(--accent)); }
+    100% { transform: scale(1);    filter: none; }
+  }
+  .equation.ok .tok { animation: connect .5s ease; }
+  @keyframes nudge { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .equation.ng { animation: nudge .28s ease; }
+  .equation.dup .tok.blank { border-color: var(--warn); }
+
+  /* 発見状況 */
+  .found { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .pips { display: flex; gap: 8px; }
+  .pip { width: 11px; height: 11px; border-radius: 50%; background: var(--blank); transition: background .25s; }
+  .pip.on { background: var(--accent); }
+  .found-list { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center; font-size: 14px; color: var(--dim); min-height: 20px; }
+  .msg { font-size: 14px; height: 20px; color: var(--accent); }
+  .msg.warn { color: var(--warn); }
+
+  /* 選択肢。企画正本 §3-2 の14種類を常設する */
+  .pad { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 16px; background: var(--panel); border-top: 1px solid var(--line); }
+  .row { display: flex; gap: 8px; justify-content: center; }
+  button {
+    font: inherit; color: var(--text); background: #232b3b; border: 1px solid var(--line);
+    border-radius: 12px; min-width: 44px; min-height: 48px; flex: 1; max-width: 68px;
+    font-size: 20px; font-weight: 600; cursor: pointer;
+  }
+  button:active { background: #2e3850; }
+  .row.ops button { color: var(--accent); }
+  .nav { display: flex; gap: 8px; justify-content: center; padding: 0 12px 14px; background: var(--panel); }
+  .nav button { max-width: none; font-size: 15px; min-height: 44px; font-weight: 500; color: var(--dim); }
+  .nav button.primary { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+  .done { text-align: center; color: var(--accent); font-size: 15px; }
+</style>
+</head>
+<body>
+<header>
+  <span id="progress"></span>
+  <span id="band"></span>
+</header>
+
+<main>
+  <div class="equation" id="equation"></div>
+
+  <div class="found">
+    <div class="pips" id="pips"></div>
+    <div class="msg" id="msg"></div>
+    <div class="found-list" id="foundList"></div>
+  </div>
+</main>
+
+<div class="pad">
+  <div class="row" id="row1"></div>
+  <div class="row" id="row2"></div>
+  <div class="row ops" id="row3"></div>
+</div>
+<div class="nav">
+  <button id="clear">とりけし</button>
+  <button id="next" class="primary">つぎの問題</button>
+</div>
+
+<script src="puzzles.js"></script>
+<script>
+(function () {
+  "use strict";
+  const PUZZLES = window.KAZUNECT_PUZZLES || [];
+  const $ = (id) => document.getElementById(id);
+
+  let index = 0;
+  let tokens = [];     // 現在の盤面
+  let blanks = [];     // 空欄の位置
+  let selected = 0;    // いま入力対象の空欄（blanks の添字）
+  let found = [];      // 見つけた解の番号
+
+  const puzzle = () => PUZZLES[index];
+
+  function load(i) {
+    index = i;
+    const p = puzzle();
+    tokens = p.template.slice();
+    blanks = [];
+    tokens.forEach((t, k) => { if (t === "_") blanks.push(k); });
+    selected = 0;
+    found = [];
+    $("msg").textContent = "";
+    $("msg").className = "msg";
+    render();
+  }
+
+  function render() {
+    const p = puzzle();
+    $("progress").textContent = `問題 ${index + 1} / ${PUZZLES.length}`;
+    $("band").textContent = p.band;
+
+    const eq = $("equation");
+    eq.className = "equation";
+    eq.innerHTML = "";
+    tokens.forEach((t, k) => {
+      const el = document.createElement("div");
+      const blankPos = blanks.indexOf(k);
+      if (blankPos !== -1) {
+        el.className = "tok blank" + (t !== "_" ? " filled" : "") + (blankPos === selected ? " sel" : "");
+        el.textContent = t === "_" ? "" : t;
+        el.addEventListener("click", () => { selected = blankPos; render(); });
+      } else {
+        el.className = "tok fixed" + (/[+\-×÷=]/.test(t) ? " op" : "");
+        el.textContent = t;
+      }
+      eq.appendChild(el);
+    });
+
+    const pips = $("pips");
+    pips.innerHTML = "";
+    for (let k = 0; k < p.solutions.length; k++) {
+      const pip = document.createElement("div");
+      pip.className = "pip" + (found.includes(k) ? " on" : "");
+      pips.appendChild(pip);
+    }
+
+    $("foundList").innerHTML = found.map((k) => `<span>${p.solutions[k]}</span>`).join("");
+    $("next").textContent = index + 1 >= PUZZLES.length ? "さいしょへ" : "つぎの問題";
+  }
+
+  function place(choice) {
+    if (blanks.length === 0) return;
+    tokens[blanks[selected]] = choice;
+    // 次の空欄へ自動で送る。全部埋まっていればその場に留まる。
+    const nextEmpty = blanks.findIndex((k) => tokens[k] === "_");
+    if (nextEmpty !== -1) selected = nextEmpty;
+    render();
+    if (blanks.every((k) => tokens[k] !== "_")) check();
+  }
+
+  function check() {
+    const p = puzzle();
+    const key = tokens.join(" ");
+    const hit = p.accepted[key];
+    const eq = $("equation");
+    const msg = $("msg");
+
+    if (hit === undefined) {
+      eq.classList.add("ng");
+      msg.textContent = "まだ繋がらない";
+      msg.className = "msg warn";
+      setTimeout(() => eq.classList.remove("ng"), 300);
+      return;
+    }
+    if (found.includes(hit)) {
+      eq.classList.add("dup");
+      msg.textContent = "それはもう見つけた繋ぎ方";
+      msg.className = "msg warn";
+      setTimeout(() => eq.classList.remove("dup"), 600);
+      return;
+    }
+
+    found.push(hit);
+    render();
+    eq.classList.add("ok");
+    const left = p.solutions.length - found.length;
+    msg.textContent = left === 0
+      ? "ぜんぶ繋がった"
+      : `繋がった　のこり ${left} 通り`;
+    msg.className = "msg";
+
+    setTimeout(() => {
+      eq.classList.remove("ok");
+      if (left > 0) clearBlanks(); // 続けて別解を探せるよう盤面を戻す
+    }, 700);
+  }
+
+  function clearBlanks() {
+    blanks.forEach((k) => { tokens[k] = "_"; });
+    selected = 0;
+    render();
+  }
+
+  const DIGITS = ["1", "2", "3", "4", "5"];
+  const DIGITS2 = ["6", "7", "8", "9"];
+  const OPS = ["+", "-", "×", "÷", "="];
+  const fill = (row, list) => {
+    list.forEach((c) => {
+      const b = document.createElement("button");
+      b.textContent = c;
+      b.addEventListener("click", () => place(c));
+      row.appendChild(b);
+    });
+  };
+  fill($("row1"), DIGITS);
+  fill($("row2"), DIGITS2);
+  fill($("row3"), OPS);
+
+  $("clear").addEventListener("click", () => { clearBlanks(); $("msg").textContent = ""; });
+  $("next").addEventListener("click", () => load((index + 1) % PUZZLES.length));
+
+  if (PUZZLES.length === 0) {
+    document.querySelector("main").innerHTML = '<div class="done">問題データが読み込めていません（puzzles.js）</div>';
+  } else {
+    load(0);
+  }
+})();
+</script>
+</body>
+</html>
