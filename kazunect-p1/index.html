@@ -23,28 +23,32 @@
 -->
 <link rel="stylesheet" href="nect.css">
 <style>
-  /* 道。左から右へ読み、入りきらない分は折り返す。 */
-  .road {
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
-    gap: 0.3rem 0.35rem;
-    --station: clamp(2.1rem, min(13vw, 7vh), 3.2rem);
-    --small: clamp(1.7rem, min(10vw, 5.5vh), 2.5rem);
+  /*
+   * 道。**1手ぶんを1行の式として出す。**
+   *
+   * 最初は `3 □□ ? □□ ?` と、演算子と数だけを並べていた。ようすけさん判定
+   * 「＝を使わないと最初よく分からん」。式に見えないと、何をする画面なのかが伝わらない。
+   * 行ごとに `前の答え 記号 数 = 答え` と読める形にする。
+   *
+   * 前の行の答えが次の行の頭になる。**間を埋めると次の行の頭が決まる**ことが、
+   * 縦に並べると一目で分かる（企画正本の「繋ぐ」）。
+   */
+  .road { display: flex; flex-direction: column; gap: 0.25rem; align-items: center;
+    --cell: clamp(1.8rem, min(11vw, 5.2vh), 2.8rem); }
+  .row { display: flex; gap: 0.22rem; align-items: center; }
+  .road .nect-tile {
+    width: var(--cell); height: var(--cell);
+    font-size: clamp(0.85rem, 4.6vw, 1.25rem);
+    border-radius: 0.4rem;
   }
-  .station {
-    width: var(--station); height: var(--station);
-    font-size: clamp(1rem, 5.5vw, 1.5rem);
-  }
+  /* 等号は操作対象ではないので、枠を持たせず記号だけを置く。 */
+  .eq { width: calc(var(--cell) * 0.7); text-align: center; color: var(--dim);
+    font-size: clamp(0.8rem, 4vw, 1.1rem); }
   .station--goal { border-color: var(--hot); color: var(--hot); }
   .station--unknown { color: var(--dim); border-style: dashed; }
-
-  /* 1手ぶん（演算子と数）。駅より小さくして、駅が道の節目に見えるようにする。 */
-  .move { display: flex; gap: 0.2rem; }
-  .move .nect-tile {
-    width: var(--small); height: var(--small);
-    font-size: clamp(0.85rem, 4.5vw, 1.2rem);
-    border-radius: 0.45rem;
-  }
-  .move.is-current .nect-tile--blank { border-color: var(--accent); }
+  .row.is-current .nect-tile--blank { border-color: var(--accent); }
+  /* まだ手が決まっていない行は、これから来る道として控えめに見せる。 */
+  .row.is-future { opacity: 0.45; }
 
   .goal-line { font-size: var(--fs-strong); color: var(--dim); text-align: center; }
   .goal-line b { color: var(--fg); font-size: var(--fs-lead); }
@@ -162,31 +166,35 @@
 
     const road = $("road");
     road.innerHTML = "";
-    road.appendChild(tile("nect-tile nect-tile--fixed station", p.start));
 
     for (let n = 0; n < p.hand.length; n++) {
       const m = moves[n];
-      const isCurrent = n === moves.length && pendingOp === null
-        || (n === moves.length && pendingOp !== null);
-
-      const group = document.createElement("div");
-      group.className = "move" + (isCurrent ? " is-current" : "");
-      const opText = m ? glyph(m.op) : (n === moves.length && pendingOp ? glyph(pendingOp) : "");
-      const numText = m ? m.operand : "";
-      group.appendChild(tile("nect-tile nect-tile--blank" + (opText ? " is-filled" : ""), opText));
-      group.appendChild(tile("nect-tile nect-tile--blank" + (numText ? " is-filled" : ""), numText));
-      road.appendChild(group);
-
+      const isCurrent = n === moves.length;
       const last = n === p.hand.length - 1;
+
+      const row = document.createElement("div");
+      row.className = "row" + (isCurrent ? " is-current" : "")
+        + (n > moves.length ? " is-future" : "");
+
+      // 行の頭＝前の行の答え。最初の行だけスタートの数。
+      const from = n === 0 ? p.start : (moves[n - 1] ? String(moves[n - 1].result) : "?");
+      row.appendChild(tile(
+        "nect-tile " + (from === "?" ? "station station--unknown" : "nect-tile--fixed"), from));
+
+      const opText = m ? glyph(m.op) : (isCurrent && pendingOp ? glyph(pendingOp) : "");
+      const numText = m ? m.operand : "";
+      row.appendChild(tile("nect-tile nect-tile--blank" + (opText ? " is-filled" : ""), opText));
+      row.appendChild(tile("nect-tile nect-tile--blank" + (numText ? " is-filled" : ""), numText));
+      row.appendChild(tile("eq", "="));
+
+      // 行の答え。最後の行だけは最初からゴールが見えている。
       if (m) {
-        road.appendChild(tile(
-          "nect-tile nect-tile--fixed station" + (last ? " station--goal" : ""),
-          String(m.result)));
+        row.appendChild(tile("nect-tile nect-tile--fixed" + (last ? " station--goal" : ""), String(m.result)));
       } else {
-        road.appendChild(tile(
-          "nect-tile station station--unknown" + (last ? " station--goal" : ""),
+        row.appendChild(tile("nect-tile station--unknown" + (last ? " station--goal" : ""),
           last ? p.goal : "?"));
       }
+      road.appendChild(row);
     }
 
     const hand = $("hand");
