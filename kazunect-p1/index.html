@@ -76,6 +76,7 @@
 
   <main class="nect-stage">
     <div class="goal-line" id="goalLine"></div>
+    <p class="nect-note">数字の間をうめて、下までつなぐ</p>
     <div class="road" id="road"></div>
     <div class="hand" id="hand"></div>
     <div class="nect-pips" id="pips"></div>
@@ -152,6 +153,15 @@
     const known = new Array(n + 1).fill(null);
     known[0] = Number(p.start);
     known[n] = Number(p.goal);
+    /*
+     * 最初から見せる駅（数独でいうヒントのマス）。
+     *
+     * 鎖の手がかりは両端しか無いので、これが無いと「どの行も決まらない」状態が生まれ、
+     * 当てずっぽうで置くしかなくなる。生成器は**この駅を見せた状態で論理だけで解ける**
+     * ことを確かめた問題だけを出している（ようすけさん指摘「そういうロジックで
+     * 解いていけるように問題を作る必要もある」）。
+     */
+    for (const [i, v] of Object.entries(p.given ?? {})) known[Number(i)] = v;
 
     // 決まるものが無くなるまで、前向き・後ろ向きの両方を繰り返す。
     for (let pass = 0; pass < n + 1; pass++) {
