@@ -89,7 +89,7 @@
     <div class="nect-pad__row nect-pad__row--ops" id="row3"></div>
   </div>
   <div class="nect-actions">
-    <button id="clear">とりけし</button>
+    <button id="clear">この行を消す</button>
     <button id="next" class="is-primary">つぎの問題</button>
   </div>
 </div>
@@ -99,35 +99,86 @@
 (function () {
   "use strict";
   const PUZZLES = window.KAZUNECT_PUZZLES || [];
+  const STEPS = window.KAZUNECT_STEPS || {};   // "元の数|記号|使う数" → 答え
   const $ = (id) => document.getElementById(id);
   const glyph = (t) => (t === "-" ? "−" : t);
 
   let index = 0;
-  let moves = [];   // [{op, operand, result}] 埋まった手。result は生成器の対応表から引く
+  /*
+   * 行ごとの手。**どの行から埋めてもよい。**
+   *
+   * 最初は先頭から順にしか置けなかった。ようすけさん判定「数独のように、ここの
+   * マスにはこれしかあり得ないからまずここを埋める、という解き方ができればいいが、
+   * 頭の中だけで何手も暗算を繰り返すのは普通の子供にはキツい」。
+   *
+   * 順番を強制すると、1手置くために先まで暗算で読む必要が出る。**どこからでも
+   * 置けるようにすると、決まる場所から埋められ、途中の数は盤面が覚えてくれる。**
+   */
+  let moves = [];      // 行番号 → {op, operand} または null
+  let selected = 0;    // いま入力対象の行
   let pendingOp = null;
   let found = [];
 
   const puzzle = () => PUZZLES[index];
 
   /**
-   * いま埋まっている手から、次に進める駅を求める。
+   * いま置かれている手と矛盾しない道を絞る。
    *
-   * **計算はここでしない。** 生成器が出した道のどれかと前方一致していれば、その道の
-   * 結果を借りる。一致しなければ「進めない」。同じ計算規則を画面へ書くと必ずズレる。
+   * **計算はここでしない。** 生成器が出した道のうち、置かれた手と全部一致するものを
+   * 残すだけ。同じ計算規則を画面へ書くと片方だけ直されてズレる（INC-2026-08-13-005）。
    */
-  function stationAfter(n) {
+  function consistentRoutes(trial) {
     const p = puzzle();
-    const prefix = moves.slice(0, n).map((m) => `${m.op}${m.operand}`).join(" ");
-    for (const route of p.routes) {
-      const rp = route.slice(0, n).map((s) => `${s.op}${s.operand}`).join(" ");
-      if (rp === prefix) return route[n - 1].result;
+    const state = trial ?? moves;
+    return p.routes.filter((route) =>
+      state.every((m, n) => !m || (route[n].op === m.op && route[n].operand === m.operand)));
+  }
+
+  /**
+   * 各駅の数を求める。**局所的に決まる分だけ**を出す。
+   *
+   * 最初は「矛盾しない道が1本に絞れたら全部見せる」実装にしていたが、それだと
+   * 2行埋めた時点で途中の駅が全部現れ、**盤面が答えを教えてしまう**。
+   * 数独は勝手にマスを埋めない。隣から辿って決まる分だけを出す。
+   *
+   *   前向き: スタートが分かっていて、その行が埋まっていれば、次の駅が決まる
+   *   後ろ向き: ゴールが分かっていて、その行が埋まっていれば、手前の駅が決まる
+   *
+   * 両端から埋めれば真ん中で出会う。これが「ここしかあり得ない場所から埋める」遊び。
+   */
+  function stationValues() {
+    const p = puzzle();
+    const n = p.hand.length;
+    const known = new Array(n + 1).fill(null);
+    known[0] = Number(p.start);
+    known[n] = Number(p.goal);
+
+    // 決まるものが無くなるまで、前向き・後ろ向きの両方を繰り返す。
+    for (let pass = 0; pass < n + 1; pass++) {
+      for (let i = 0; i < n; i++) {
+        const m = moves[i];
+        if (!m) continue;
+        if (known[i] !== null && known[i + 1] === null) {
+          const to = STEPS[`${known[i]}|${m.op}|${m.operand}`];
+          if (to !== undefined) known[i + 1] = to;
+        }
+        if (known[i + 1] !== null && known[i] === null) {
+          // 同じ手で目的の数になる「元の数」を1〜9から探す。複数あれば決まらない。
+          const cands = [];
+          for (let x = 1; x <= 9; x++) {
+            if (STEPS[`${x}|${m.op}|${m.operand}`] === known[i + 1]) cands.push(x);
+          }
+          if (cands.length === 1) known[i] = cands[0];
+        }
+      }
     }
-    return null;
+    return known;
   }
 
   function load(i) {
     index = i;
-    moves = [];
+    moves = new Array(PUZZLES[i].hand.length).fill(null);
+    selected = 0;
     pendingOp = null;
     found = [];
     setMsg("", false);
@@ -142,7 +193,7 @@
 
   const remainingHand = () => {
     const p = puzzle();
-    const used = moves.map((m) => m.operand);
+    const used = moves.filter(Boolean).map((m) => m.operand);
     const rest = [...p.hand];
     for (const u of used) {
       const at = rest.indexOf(u);
@@ -166,34 +217,33 @@
 
     const road = $("road");
     road.innerHTML = "";
+    const known = stationValues();
 
     for (let n = 0; n < p.hand.length; n++) {
       const m = moves[n];
-      const isCurrent = n === moves.length;
       const last = n === p.hand.length - 1;
+      const from = known[n];
+      const to = known[n + 1];
 
       const row = document.createElement("div");
-      row.className = "row" + (isCurrent ? " is-current" : "")
-        + (n > moves.length ? " is-future" : "");
+      row.className = "row" + (n === selected ? " is-current" : "");
+      // 行をタップして、そこから埋められる。決まる場所から手をつけられるようにする。
+      row.addEventListener("click", () => { selected = n; pendingOp = null; render(); });
 
-      // 行の頭＝前の行の答え。最初の行だけスタートの数。
-      const from = n === 0 ? p.start : (moves[n - 1] ? String(moves[n - 1].result) : "?");
+      const fromText = from === null ? "?" : String(from);
       row.appendChild(tile(
-        "nect-tile " + (from === "?" ? "station station--unknown" : "nect-tile--fixed"), from));
+        "nect-tile " + (fromText === "?" ? "station--unknown" : "nect-tile--fixed"), fromText));
 
-      const opText = m ? glyph(m.op) : (isCurrent && pendingOp ? glyph(pendingOp) : "");
+      const opText = m ? glyph(m.op) : (n === selected && pendingOp ? glyph(pendingOp) : "");
       const numText = m ? m.operand : "";
       row.appendChild(tile("nect-tile nect-tile--blank" + (opText ? " is-filled" : ""), opText));
       row.appendChild(tile("nect-tile nect-tile--blank" + (numText ? " is-filled" : ""), numText));
       row.appendChild(tile("eq", "="));
 
-      // 行の答え。最後の行だけは最初からゴールが見えている。
-      if (m) {
-        row.appendChild(tile("nect-tile nect-tile--fixed" + (last ? " station--goal" : ""), String(m.result)));
-      } else {
-        row.appendChild(tile("nect-tile station--unknown" + (last ? " station--goal" : ""),
-          last ? p.goal : "?"));
-      }
+      const toText = to === null ? "?" : String(to);
+      row.appendChild(tile(
+        "nect-tile " + (toText === "?" ? "station--unknown" : "nect-tile--fixed")
+        + (last ? " station--goal" : ""), toText));
       road.appendChild(row);
     }
 
@@ -228,30 +278,43 @@
 
   function place(kind, value) {
     const p = puzzle();
-    if (moves.length >= p.hand.length) return;
 
     if (kind === "op") { pendingOp = value; render(); return; }
     if (pendingOp === null) { setMsg("さきに記号をえらぶ", true); return; }
 
-    moves.push({ op: pendingOp, operand: value, result: null });
-    const result = stationAfter(moves.length);
-    if (result === null) {
-      moves.pop();
+    /*
+     * **その場で分かる範囲だけを弾く。** 元の数が分かっている行で、その手が
+     * 成り立たない（9を超える・0以下になる・割り切れない）場合だけ拒む。
+     *
+     * 「どの道にも合わないから」という理由で拒むのはやめた。それをやると、
+     * 押して弾かれるのを繰り返すだけで正解に辿り着けてしまい、総当たりが
+     * また最適戦略になる（試作1で潰したはずの問題が別の形で戻る）。
+     * 数独と同じで、局所的に置ける手は置けてよく、間違いは後で分かる。
+     */
+    const known = stationValues();
+    if (known[selected] !== null
+        && STEPS[`${known[selected]}|${pendingOp}|${value}`] === undefined) {
       pendingOp = null;
       render();
       const road = $("road");
       road.classList.add("nect-rejected");
-      setMsg("そこへは進めない", true);
+      setMsg("その手では1〜9からはみ出す", true);
       setTimeout(() => road.classList.remove("nect-rejected"), 300);
       return;
     }
-    moves[moves.length - 1].result = result;
+
+    const trial = moves.slice();
+    trial[selected] = { op: pendingOp, operand: value };
+    moves = trial;
     pendingOp = null;
+    // 次に空いている行へ送る。無ければその場に留まる。
+    const nextEmpty = moves.findIndex((m) => m === null);
+    if (nextEmpty !== -1) selected = nextEmpty;
     render();
     $("road").classList.add("nect-connected");
     setTimeout(() => $("road").classList.remove("nect-connected"), 500);
 
-    if (moves.length === p.hand.length) finish();
+    if (moves.every(Boolean)) finish();
     else setMsg("繋がった", false);
   }
 
@@ -259,14 +322,17 @@
     const p = puzzle();
     const key = moves.map((m) => `${m.op}${m.operand}`).join(" ");
     const hit = p.accepted[key];
-    if (hit === undefined) { setMsg("ゴールに届かない", true); return; }
+    if (hit === undefined) { setMsg("この道ではゴールに届かない", true); return; }
     if (found.includes(hit)) { setMsg("それはもう見つけた道", true); return; }
 
     found.push(hit);
     render();
     const left = p.routes.length - found.length;
     setMsg(left === 0 ? "ぜんぶ繋がった" : `ゴール　のこり ${left} 通り`, false);
-    if (left > 0) setTimeout(() => { moves = []; pendingOp = null; render(); }, 900);
+    if (left > 0) setTimeout(() => {
+      moves = new Array(p.hand.length).fill(null);
+      selected = 0; pendingOp = null; render();
+    }, 900);
   }
 
   const fill = (row, list, kind) => {
@@ -282,7 +348,19 @@
   fill($("row2"), ["6", "7", "8", "9"], "num");
   fill($("row3"), ["+", "-", "×", "÷"], "op");
 
-  $("clear").addEventListener("click", () => { moves = []; pendingOp = null; setMsg("", false); render(); });
+  $("clear").addEventListener("click", () => {
+    /*
+     * 選んでいる行だけを消す。全部やり直させない（数独で1マス消すのと同じ感覚）。
+     * ただし全部埋まっている時と、選んだ行がもともと空の時は、まとめて消す。
+     */
+    if (moves.every(Boolean) || !moves[selected]) moves = new Array(puzzle().hand.length).fill(null);
+    else moves[selected] = null;
+    selected = moves.findIndex((m) => m === null);
+    if (selected === -1) selected = 0;
+    pendingOp = null;
+    setMsg("", false);
+    render();
+  });
   $("next").addEventListener("click", () => load((index + 1) % PUZZLES.length));
 
   if (PUZZLES.length === 0) $("msg").textContent = "問題データが読み込めていません（hand-puzzles.js）";
