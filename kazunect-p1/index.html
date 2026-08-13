@@ -3,45 +3,64 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>カズネクト 試作2（交差）</title>
+<title>カズネクト 試作3（道つなぎ）</title>
 <!--
-  カズネクト 試作2 — 交差型
+  カズネクト 試作3 — 材料を使い切る道つなぎ
 
-  試作1（一本の式）は総当たりが最適戦略になっていた。ようすけさん判定
-  「+-+×を順番にやっていく総当たりは作業であって面白くはない」。
-  1つのマスを縦と横の両方の式に属させ、総当たりを割に合わなくする。
+  4度目の形。判定の履歴は README.md。要点だけ:
+    1. 一本の式の穴埋め → 総当たりが最適戦略（「順番に押すのは作業」）
+    2. 交差型 → 縦と横が独立していて道が繋がらない
+    3. ゴールへ着くだけの道つなぎ → 3手で中央159通り。手なりで着く
+  共通原因は「14種類をいつでも自由に選べる」こと。資源が無限だと計画が要らない。
 
-  確かめたいのは1点だけ。**推理して繋ぐのが面白いか。**
-  章・セーブ・称号・音・ネクトの演出は入れない。面白くなかった時に
-  「演出のせいかもしれない」という言い訳を残さないため。
+  渡された数を一度ずつ全部使う規則を入れると、道が1〜3通りへ落ちる。
+  「7を最後に使うと9を超える、だから先に使う」という逆算が要る。
 
-  正解判定はこの画面に無い。生成器が作った対応表を引くだけ。
-  同じ計算規則を画面側にもう一度書くと片方だけ直されてズレる（INC-2026-08-13-005）。
+  確かめたいのは1点だけ。**間を埋めて先の道が繋がるのが面白いか。**
 
-  見た目は `_nect-shared/nect.css`（コトネクトのアートディレクションを共通層へ切り出したもの）。
+  正解判定はこの画面に無い。生成器が作った対応表を引くだけ（INC-2026-08-13-005）。
+  見た目は `_nect-shared/nect.css`（コトネクトのアートディレクション）。
 -->
-<!-- 制作時は共通層を直接読む。公開時だけ配信用の複製を同じ階層へ置く（AGENTS §4-2 の原版と配信用実体）。 -->
 <link rel="stylesheet" href="nect.css">
 <style>
-  /* 盤面。5×5のうち、横1行と縦1列だけにマスが載る。 */
-  .board {
-    display: grid;
-    grid-template-columns: repeat(5, var(--cell));
-    grid-template-rows: repeat(5, var(--cell));
-    gap: 0.35rem;
-    /* 幅だけでなく**高さにも追随**させる。低い画面では盤面が先に縮み、操作部を押し出さない。 */
-    --cell: clamp(1.9rem, min(14vw, 8vh), 3.4rem);
+  /* 道。左から右へ読み、入りきらない分は折り返す。 */
+  .road {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: 0.3rem 0.35rem;
+    --station: clamp(2.1rem, min(13vw, 7vh), 3.2rem);
+    --small: clamp(1.7rem, min(10vw, 5.5vh), 2.5rem);
   }
-  .board .nect-tile { width: var(--cell); height: var(--cell); font-size: clamp(1.1rem, 6vw, 1.7rem); }
-  .board .slot-empty { width: var(--cell); height: var(--cell); }
-
-  /* 交差マス。2つの式が通る場所であることを、常時わかるようにしておく。 */
-  .is-cross { box-shadow: var(--glow-soft), var(--bevel); }
-
-  .found-list {
-    display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; justify-content: center;
-    font-size: var(--fs-aux); color: var(--dim); min-height: 1.2em;
+  .station {
+    width: var(--station); height: var(--station);
+    font-size: clamp(1rem, 5.5vw, 1.5rem);
   }
+  .station--goal { border-color: var(--hot); color: var(--hot); }
+  .station--unknown { color: var(--dim); border-style: dashed; }
+
+  /* 1手ぶん（演算子と数）。駅より小さくして、駅が道の節目に見えるようにする。 */
+  .move { display: flex; gap: 0.2rem; }
+  .move .nect-tile {
+    width: var(--small); height: var(--small);
+    font-size: clamp(0.85rem, 4.5vw, 1.2rem);
+    border-radius: 0.45rem;
+  }
+  .move.is-current .nect-tile--blank { border-color: var(--accent); }
+
+  .goal-line { font-size: var(--fs-strong); color: var(--dim); text-align: center; }
+  .goal-line b { color: var(--fg); font-size: var(--fs-lead); }
+
+  /* 使う数。使ったら消える。残りが見えることが逆算の材料になる。 */
+  .hand { display: flex; gap: 0.4rem; align-items: center; font-size: var(--fs-aux); color: var(--dim); }
+  .hand-chip {
+    min-width: 1.7rem; padding: 0.15rem 0.35rem; text-align: center;
+    border: 1px solid var(--box-border); border-radius: 0.35rem;
+    color: var(--fg); font-size: var(--fs-body); font-weight: 700;
+  }
+  .hand-chip.is-used { opacity: 0.28; text-decoration: line-through; }
+
+  .nect-pad button:disabled { opacity: 0.25; cursor: default; }
+  .found-list { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; justify-content: center;
+    font-size: var(--fs-aux); color: var(--dim); min-height: 1.1em; }
 </style>
 </head>
 <body>
@@ -52,11 +71,12 @@
   </header>
 
   <main class="nect-stage">
-    <div class="board" id="board"></div>
+    <div class="goal-line" id="goalLine"></div>
+    <div class="road" id="road"></div>
+    <div class="hand" id="hand"></div>
     <div class="nect-pips" id="pips"></div>
     <div class="nect-msg" id="msg"></div>
     <div class="found-list" id="foundList"></div>
-    <p class="nect-note">たての式とよこの式が、まん中のマスで繋がっている</p>
   </main>
 
   <div class="nect-pad">
@@ -70,44 +90,41 @@
   </div>
 </div>
 
-<script src="cross-puzzles.js"></script>
+<script src="hand-puzzles.js"></script>
 <script>
 (function () {
   "use strict";
   const PUZZLES = window.KAZUNECT_PUZZLES || [];
   const $ = (id) => document.getElementById(id);
+  const glyph = (t) => (t === "-" ? "−" : t);
 
   let index = 0;
-  let cells = {};      // "行,列" → トークン
-  let blanks = [];      // 空欄のキー
-  let selected = 0;
+  let moves = [];   // [{op, operand, result}] 埋まった手。result は生成器の対応表から引く
+  let pendingOp = null;
   let found = [];
 
   const puzzle = () => PUZZLES[index];
-  const isOp = (t) => ["+", "-", "×", "÷"].includes(t);
 
-  /*
-   * 表示だけの置き換え。データは "-" のまま扱う（対応表のキーが変わると判定が壊れる）。
-   * 半角ハイフンは他の記号より細く短く、`+ × ÷ =` と並ぶと1つだけ弱く見える。
+  /**
+   * いま埋まっている手から、次に進める駅を求める。
+   *
+   * **計算はここでしない。** 生成器が出した道のどれかと前方一致していれば、その道の
+   * 結果を借りる。一致しなければ「進めない」。同じ計算規則を画面へ書くと必ずズレる。
    */
-  const glyph = (t) => (t === "-" ? "\u2212" : t);
-
-  /** 実際にマスがある範囲だけを描く。5×5のまま描くと、空マスのぶん盤面が片側へ寄る。 */
-  function bounds(cells) {
-    const rows = [], cols = [];
-    for (const k of Object.keys(cells)) {
-      const [r, c] = k.split(",").map(Number);
-      rows.push(r); cols.push(c);
+  function stationAfter(n) {
+    const p = puzzle();
+    const prefix = moves.slice(0, n).map((m) => `${m.op}${m.operand}`).join(" ");
+    for (const route of p.routes) {
+      const rp = route.slice(0, n).map((s) => `${s.op}${s.operand}`).join(" ");
+      if (rp === prefix) return route[n - 1].result;
     }
-    return { r0: Math.min(...rows), r1: Math.max(...rows), c0: Math.min(...cols), c1: Math.max(...cols) };
+    return null;
   }
 
   function load(i) {
     index = i;
-    const p = puzzle();
-    cells = { ...p.cells };
-    blanks = p.blanks.slice();
-    selected = 0;
+    moves = [];
+    pendingOp = null;
     found = [];
     setMsg("", false);
     render();
@@ -119,126 +136,149 @@
     el.className = "nect-msg" + (warn ? " nect-msg--warn" : "");
   }
 
+  const remainingHand = () => {
+    const p = puzzle();
+    const used = moves.map((m) => m.operand);
+    const rest = [...p.hand];
+    for (const u of used) {
+      const at = rest.indexOf(u);
+      if (at !== -1) rest.splice(at, 1);
+    }
+    return rest;
+  };
+
+  function tile(cls, text) {
+    const el = document.createElement("div");
+    el.className = cls;
+    el.textContent = text;
+    return el;
+  }
+
   function render() {
     const p = puzzle();
     $("progress").textContent = `問題 ${index + 1} / ${PUZZLES.length}`;
     $("band").textContent = p.band;
+    $("goalLine").innerHTML = `<b>${p.start}</b> から <b>${p.goal}</b> へ`;
 
-    const board = $("board");
-    board.innerHTML = "";
-    const b = bounds(p.cells);
-    board.style.gridTemplateColumns = `repeat(${b.c1 - b.c0 + 1}, var(--cell))`;
-    board.style.gridTemplateRows = `repeat(${b.r1 - b.r0 + 1}, var(--cell))`;
-    for (let r = b.r0; r <= b.r1; r++) {
-      for (let c = b.c0; c <= b.c1; c++) {
-        const key = `${r},${c}`;
-        const t = cells[key];
-        if (t === undefined) {
-          const gap = document.createElement("div");
-          gap.className = "slot-empty";
-          board.appendChild(gap);
-          continue;
-        }
-        const el = document.createElement("div");
-        const blankAt = blanks.indexOf(key);
-        const cross = r === p.ri && c === p.ci;
-        if (blankAt !== -1) {
-          el.className = "nect-tile nect-tile--blank"
-            + (t !== "_" ? " is-filled" : "")
-            + (blankAt === selected ? " is-selected" : "")
-            + (cross ? " is-cross" : "");
-          el.textContent = t === "_" ? "" : glyph(t);
-          el.addEventListener("click", () => { selected = blankAt; render(); });
-        } else {
-          el.className = "nect-tile nect-tile--fixed" + (isOp(t) || t === "=" ? " nect-tile--op" : "");
-          el.textContent = glyph(t);
-        }
-        board.appendChild(el);
+    const road = $("road");
+    road.innerHTML = "";
+    road.appendChild(tile("nect-tile nect-tile--fixed station", p.start));
+
+    for (let n = 0; n < p.hand.length; n++) {
+      const m = moves[n];
+      const isCurrent = n === moves.length && pendingOp === null
+        || (n === moves.length && pendingOp !== null);
+
+      const group = document.createElement("div");
+      group.className = "move" + (isCurrent ? " is-current" : "");
+      const opText = m ? glyph(m.op) : (n === moves.length && pendingOp ? glyph(pendingOp) : "");
+      const numText = m ? m.operand : "";
+      group.appendChild(tile("nect-tile nect-tile--blank" + (opText ? " is-filled" : ""), opText));
+      group.appendChild(tile("nect-tile nect-tile--blank" + (numText ? " is-filled" : ""), numText));
+      road.appendChild(group);
+
+      const last = n === p.hand.length - 1;
+      if (m) {
+        road.appendChild(tile(
+          "nect-tile nect-tile--fixed station" + (last ? " station--goal" : ""),
+          String(m.result)));
+      } else {
+        road.appendChild(tile(
+          "nect-tile station station--unknown" + (last ? " station--goal" : ""),
+          last ? p.goal : "?"));
       }
+    }
+
+    const hand = $("hand");
+    hand.innerHTML = "<span>使う数</span>";
+    const rest = remainingHand();
+    const restCopy = [...rest];
+    for (const d of p.hand) {
+      const at = restCopy.indexOf(d);
+      const used = at === -1;
+      if (!used) restCopy.splice(at, 1);
+      hand.appendChild(tile("hand-chip" + (used ? " is-used" : ""), d));
     }
 
     const pips = $("pips");
     pips.innerHTML = "";
-    for (let k = 0; k < p.solutions.length; k++) {
-      const pip = document.createElement("div");
-      pip.className = "nect-pip" + (found.includes(k) ? " is-on" : "");
-      pips.appendChild(pip);
+    for (let k = 0; k < p.routes.length; k++) {
+      pips.appendChild(tile("nect-pip" + (found.includes(k) ? " is-on" : ""), ""));
     }
 
     $("foundList").innerHTML = found.map((k) => {
-      const s = p.solutions[k];
-      const h = [0, 1, 2, 3, 4].map((n) => glyph(s[`${p.ri},${n}`])).join("");
-      const v = [0, 1, 2, 3, 4].map((n) => glyph(s[`${n},${p.ci}`])).join("");
-      return `<span>${h}／${v}</span>`;
+      const r = p.routes[k];
+      return `<span>${p.start} ${r.map((s) => glyph(s.op) + s.operand).join(" ")}</span>`;
     }).join("");
 
+    // 使える数だけを押せるようにする。押してから弾かれるより、押せないほうが早く分かる。
+    for (const b of document.querySelectorAll("#row1 button, #row2 button")) {
+      b.disabled = !rest.includes(b.dataset.value);
+    }
     $("next").textContent = index + 1 >= PUZZLES.length ? "さいしょへ" : "つぎの問題";
   }
 
-  function place(choice) {
-    if (blanks.length === 0) return;
-    cells[blanks[selected]] = choice;
-    const nextEmpty = blanks.findIndex((k) => cells[k] === "_");
-    if (nextEmpty !== -1) selected = nextEmpty;
+  function place(kind, value) {
+    const p = puzzle();
+    if (moves.length >= p.hand.length) return;
+
+    if (kind === "op") { pendingOp = value; render(); return; }
+    if (pendingOp === null) { setMsg("さきに記号をえらぶ", true); return; }
+
+    moves.push({ op: pendingOp, operand: value, result: null });
+    const result = stationAfter(moves.length);
+    if (result === null) {
+      moves.pop();
+      pendingOp = null;
+      render();
+      const road = $("road");
+      road.classList.add("nect-rejected");
+      setMsg("そこへは進めない", true);
+      setTimeout(() => road.classList.remove("nect-rejected"), 300);
+      return;
+    }
+    moves[moves.length - 1].result = result;
+    pendingOp = null;
     render();
-    if (blanks.every((k) => cells[k] !== "_")) check();
+    $("road").classList.add("nect-connected");
+    setTimeout(() => $("road").classList.remove("nect-connected"), 500);
+
+    if (moves.length === p.hand.length) finish();
+    else setMsg("繋がった", false);
   }
 
-  function check() {
+  function finish() {
     const p = puzzle();
-    const key = blanks.map((k) => cells[k]).join(" ");
+    const key = moves.map((m) => `${m.op}${m.operand}`).join(" ");
     const hit = p.accepted[key];
-    const board = $("board");
-
-    if (hit === undefined) {
-      board.classList.add("nect-rejected");
-      setMsg("まだ噛み合わない", true);
-      setTimeout(() => board.classList.remove("nect-rejected"), 300);
-      return;
-    }
-    if (found.includes(hit)) {
-      setMsg("それはもう見つけた繋ぎ方", true);
-      return;
-    }
+    if (hit === undefined) { setMsg("ゴールに届かない", true); return; }
+    if (found.includes(hit)) { setMsg("それはもう見つけた道", true); return; }
 
     found.push(hit);
     render();
-    $("board").classList.add("nect-connected");
-    const left = p.solutions.length - found.length;
-    setMsg(left === 0 ? "ぜんぶ繋がった" : `繋がった　のこり ${left} 通り`, false);
-
-    setTimeout(() => {
-      $("board").classList.remove("nect-connected");
-      if (left > 0) clearBlanks();
-    }, 700);
+    const left = p.routes.length - found.length;
+    setMsg(left === 0 ? "ぜんぶ繋がった" : `ゴール　のこり ${left} 通り`, false);
+    if (left > 0) setTimeout(() => { moves = []; pendingOp = null; render(); }, 900);
   }
 
-  function clearBlanks() {
-    blanks.forEach((k) => { cells[k] = "_"; });
-    selected = 0;
-    render();
-  }
-
-  const fill = (row, list) => {
-    list.forEach((c) => {
+  const fill = (row, list, kind) => {
+    for (const c of list) {
       const b = document.createElement("button");
       b.textContent = glyph(c);
-      b.addEventListener("click", () => place(c));
+      b.dataset.value = c;
+      b.addEventListener("click", () => place(kind, c));
       row.appendChild(b);
-    });
+    }
   };
-  fill($("row1"), ["1", "2", "3", "4", "5"]);
-  fill($("row2"), ["6", "7", "8", "9"]);
-  fill($("row3"), ["+", "-", "×", "÷", "="]);
+  fill($("row1"), ["1", "2", "3", "4", "5"], "num");
+  fill($("row2"), ["6", "7", "8", "9"], "num");
+  fill($("row3"), ["+", "-", "×", "÷"], "op");
 
-  $("clear").addEventListener("click", () => { clearBlanks(); setMsg("", false); });
+  $("clear").addEventListener("click", () => { moves = []; pendingOp = null; setMsg("", false); render(); });
   $("next").addEventListener("click", () => load((index + 1) % PUZZLES.length));
 
-  if (PUZZLES.length === 0) {
-    $("msg").textContent = "問題データが読み込めていません（cross-puzzles.js）";
-  } else {
-    load(0);
-  }
+  if (PUZZLES.length === 0) $("msg").textContent = "問題データが読み込めていません（hand-puzzles.js）";
+  else load(0);
 })();
 </script>
 </body>
