@@ -61,6 +61,8 @@
     color: var(--fg); font-size: var(--fs-body); font-weight: 700;
   }
   .hand-chip.is-used { opacity: 0.28; text-decoration: line-through; }
+  .hand-chip--op { color: var(--accent); }
+  .hand { flex-wrap: wrap; justify-content: center; }
 
   .nect-pad button:disabled { opacity: 0.25; cursor: default; }
   .found-list { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; justify-content: center;
@@ -76,7 +78,7 @@
 
   <main class="nect-stage">
     <div class="goal-line" id="goalLine"></div>
-    <p class="nect-note">数字の間をうめて、下までつなぐ</p>
+    <p class="nect-note">数も記号も、ぜんぶ一度ずつ使う</p>
     <div class="road" id="road"></div>
     <div class="hand" id="hand"></div>
     <div class="nect-pips" id="pips"></div>
@@ -212,6 +214,23 @@
     return rest;
   };
 
+  /**
+   * まだ使っていない記号。**記号も使い切り。**
+   *
+   * 数だけを希少にすると、上級（同時に3個の候補を抱える）が実測2件しか作れなかった。
+   * 記号も希少にすると170件になり、消去法が「どの数を」と「どの記号を」の
+   * 二次元になる（数独の行と列と同じ構造）。
+   */
+  const remainingOps = () => {
+    const used = moves.filter(Boolean).map((m) => m.op);
+    const rest = ["+", "-", "×", "÷"];
+    for (const u of used) {
+      const at = rest.indexOf(u);
+      if (at !== -1) rest.splice(at, 1);
+    }
+    return rest;
+  };
+
   function tile(cls, text) {
     const el = document.createElement("div");
     el.className = cls;
@@ -258,7 +277,7 @@
     }
 
     const hand = $("hand");
-    hand.innerHTML = "<span>使う数</span>";
+    hand.innerHTML = "<span>使う</span>";
     const rest = remainingHand();
     const restCopy = [...rest];
     for (const d of p.hand) {
@@ -266,6 +285,11 @@
       const used = at === -1;
       if (!used) restCopy.splice(at, 1);
       hand.appendChild(tile("hand-chip" + (used ? " is-used" : ""), d));
+    }
+    // 記号も使い切り。残りが見えることが消去法の材料になる。
+    const restOps = remainingOps();
+    for (const o of ["+", "-", "×", "÷"]) {
+      hand.appendChild(tile("hand-chip hand-chip--op" + (restOps.includes(o) ? "" : " is-used"), glyph(o)));
     }
 
     const pips = $("pips");
@@ -279,9 +303,12 @@
       return `<span>${p.start} ${r.map((s) => glyph(s.op) + s.operand).join(" ")}</span>`;
     }).join("");
 
-    // 使える数だけを押せるようにする。押してから弾かれるより、押せないほうが早く分かる。
+    // 使える数・記号だけを押せるようにする。押してから弾かれるより、押せないほうが早い。
     for (const b of document.querySelectorAll("#row1 button, #row2 button")) {
       b.disabled = !rest.includes(b.dataset.value);
+    }
+    for (const b of document.querySelectorAll("#row3 button")) {
+      b.disabled = !restOps.includes(b.dataset.value);
     }
     $("next").textContent = index + 1 >= PUZZLES.length ? "さいしょへ" : "つぎの問題";
   }
