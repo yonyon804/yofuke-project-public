@@ -29,7 +29,8 @@
     grid-template-columns: repeat(5, var(--cell));
     grid-template-rows: repeat(5, var(--cell));
     gap: 0.35rem;
-    --cell: clamp(2.4rem, 15vw, 3.5rem);
+    /* 幅だけでなく**高さにも追随**させる。低い画面では盤面が先に縮み、操作部を押し出さない。 */
+    --cell: clamp(1.9rem, min(14vw, 8vh), 3.4rem);
   }
   .board .nect-tile { width: var(--cell); height: var(--cell); font-size: clamp(1.1rem, 6vw, 1.7rem); }
   .board .slot-empty { width: var(--cell); height: var(--cell); }

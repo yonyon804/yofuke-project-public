@@ -184,7 +184,7 @@ code, kbd, samp, pre {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0.6rem 0.7rem calc(0.7rem + env(safe-area-inset-bottom));
+  padding: 0.5rem 0.6rem 0.4rem;
   background: linear-gradient(180deg, rgba(23, 18, 51, 0) 0%, var(--box-bg) 22%);
   border-top: 1px solid var(--box-border);
 }
@@ -220,10 +220,18 @@ code, kbd, samp, pre {
  * 画面の骨格と補助表示
  * ------------------------------------------------------------------ */
 
+/*
+ * **1画面に収める。** `min-height` で伸びるに任せると、選択肢や「つぎの問題」が
+ * 画面外へ出てスクロールしないと押せない（2026-08-13・ようすけさん実機報告
+ * 「次の問題ボタンがスクロールしないと押せないのがめんどくさい」）。
+ *
+ * 高さを固定し、はみ出す余地は**盤面側が縮んで吸収する**。操作部は常に画面内。
+ */
 .nect-app {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   padding-top: env(safe-area-inset-top);
 }
 
@@ -241,19 +249,24 @@ code, kbd, samp, pre {
   flex-wrap: wrap;
   row-gap: 0.35rem;
   gap: 0.5rem;
-  padding: 0.7rem 1rem 0.3rem;
+  padding: 0.5rem 1rem 0.2rem;
   font-size: var(--fs-aux);
   color: var(--dim);
 }
 
+/*
+ * 縮む側。`min-height: 0` が無いと、flexの既定（min-height: auto）で中身より
+ * 小さくなれず、下の操作部を押し出す。1画面に収める仕掛けの要。
+ */
 .nect-stage {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.1rem;
-  padding: 0.5rem 0.8rem;
+  gap: clamp(0.4rem, 1.5vh, 1rem);
+  padding: 0.4rem 0.8rem;
 }
 
 /* 発見の目印 */
@@ -279,7 +292,7 @@ code, kbd, samp, pre {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
-  padding: 0 0.7rem calc(0.7rem + env(safe-area-inset-bottom));
+  padding: 0 0.6rem calc(0.5rem + env(safe-area-inset-bottom));
   background: var(--box-bg);
 }
 .nect-actions button {
