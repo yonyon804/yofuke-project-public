@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-13-v3.24-hoku-removed",
+  "version": "2026-08-14-v3.25-additions",
   "status": "frozen",
   "source": {
     "mozc_repository": "google/mozc",
@@ -7,22 +7,22 @@
     "japanese_wordnet": "1.1 (existing approved generated definitions reused only on matching surface)"
   },
   "counts": {
-    "playable": 4530,
+    "playable": 4538,
     "prohibited": 113,
-    "real-but-out-of-scope": 22041,
+    "real-but-out-of-scope": 22033,
     "unlinkable": 17,
     "unknown": "implicit-not-enumerable"
   },
-  "playable_graph_words": 4530,
+  "playable_graph_words": 4538,
   "common_endpoint_words": 1200,
   "problems": 400,
   "requires_user_decision": 0,
   "sha256": {
-    "words3.json": "d701073e537294a65b092c38151b10427f9311d97309294f520841b5d1e5a6ae",
+    "words3.json": "0d819c845b1f28e8d4064ddf50195842e4901d865807896cab3e6a8aee749dd2",
     "common3.json": "a10532806c62f1eaa9c1173c18795d87ed1a31a2c1c3544f8c7a5fa3bf1057fe",
-    "problems.json": "bb1edafb1ffff5472e214c855499884f1e7ad72a66cc7e2a8d1d3583fde9af9d",
-    "accept3.json": "656d9ab2b190a70dca0d683a6a3fb27ff5f7c9925ed5cb8c4a72372986adc90a",
-    "definitions3.json": "9f77d5562ce4b8b645874eda8133e8d2ef79f654971b03e195a5b2f1493f45c7",
-    "classifications3.json": "5e7e54b4ff8bca25f0a4d986c4f8ef384da28af3dade408cf36d117d86aeeaf3"
+    "problems.json": "bd4822827a1b05a5472307c1635d80c4adfde77fc9deb6da69bf57a4f0c69595",
+    "accept3.json": "9f5ff36da1e535c7239262f758508a64c0fc41f1371711a65a68dbde1f4950ea",
+    "definitions3.json": "29e81bf15f0e0c0fe9ceb6720e55821df00fcf88c96f76be84b6ff4dc15ae552",
+    "classifications3.json": "d1c079ba7947f6583bd1f3058b4463d9d513870f6c46317c3e5b0272d4c4c4b0"
   }
 }
