@@ -5,11 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#171813" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>四畳半の観測室</title>
-    <script type="module" crossorigin src="/yofuke-works-public/assets/index-CKsXXwhd.js"></script>
-    <link rel="stylesheet" crossorigin href="/yofuke-works-public/assets/index-FCoKUPg-.css">
+    <title>夜更けプロジェクト — 公開ビルド</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f6f2;
+        --fg: #1c1d19;
+        --muted: #5d5f57;
+        --card: #ffffff;
+        --line: #dedcd3;
+        --accent: #6b5b95;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #171813;
+          --fg: #ece9e0;
+          --muted: #9c9b90;
+          --card: #21221c;
+          --line: #34352d;
+          --accent: #b8a6e6;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 2.5rem 1.25rem 4rem;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+        line-height: 1.75;
+        -webkit-text-size-adjust: 100%;
+      }
+      main { max-width: 34rem; margin: 0 auto; }
+      h1 { font-size: 1.35rem; margin: 0 0 .25rem; letter-spacing: .02em; }
+      .lede { color: var(--muted); font-size: .9rem; margin: 0 0 2.25rem; }
+      h2 { font-size: .8rem; letter-spacing: .12em; color: var(--muted); font-weight: 600; margin: 2.25rem 0 .75rem; }
+      ul { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; }
+      a.card {
+        display: block;
+        padding: 1rem 1.1rem;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: .7rem;
+        text-decoration: none;
+        color: inherit;
+      }
+      a.card:hover, a.card:focus { border-color: var(--accent); }
+      .name { font-weight: 600; }
+      .note { display: block; color: var(--muted); font-size: .82rem; margin-top: .15rem; }
+      footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <main>
+      <h1>夜更けプロジェクト</h1>
+      <p class="lede">YOFUKE PROJECT — 公開ビルドの置き場です。</p>
+
+      <h2>いま遊べるもの</h2>
+      <ul>
+        <li>
+          <a class="card" href="https://yofuke-project.itch.io/kotonect">
+            <span class="name">コトネクト（itch.io）</span>
+            <span class="note">ことばをつなぐパズル。ブラウザですぐ遊べます。無料または投げ銭。</span>
+          </a>
+        </li>
+        <li>
+          <a class="card" href="./preview-p5-kana/">
+            <span class="name">コトネクト（このサイト版）</span>
+            <span class="note">同じゲームを、章を順に解放していく本来の形で遊べます。</span>
+          </a>
+        </li>
+      </ul>
+
+      <footer>
+        このリポジトリには公開用のビルドだけを置いています。制作ソース・仕様・素材の記録は非公開です。<br />
+        検索エンジンには載せていません。
+      </footer>
+    </main>
   </body>
 </html>
