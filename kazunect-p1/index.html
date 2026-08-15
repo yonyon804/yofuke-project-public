@@ -3,70 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>カズネクト 試作3（道つなぎ）</title>
+<title>カズネクト 試作4（数の広場）</title>
 <!--
-  カズネクト 試作3 — 材料を使い切る道つなぎ
+  カズネクト 試作4 — 数の広場
 
-  4度目の形。判定の履歴は README.md。要点だけ:
-    1. 一本の式の穴埋め → 総当たりが最適戦略（「順番に押すのは作業」）
-    2. 交差型 → 縦と横が独立していて道が繋がらない
-    3. ゴールへ着くだけの道つなぎ → 3手で中央159通り。手なりで着く
-  共通原因は「14種類をいつでも自由に選べる」こと。資源が無限だと計画が要らない。
+  7度目の形。判定の履歴は README.md。要点だけ:
+    1. 一本の式の穴埋め   → 総当たりが最適戦略
+    2. 交差型             → 縦と横が独立していて道が繋がらない
+    3〜6. 材料を使い切る道つなぎ → 6回作り直して「今一面白くない」（2026-08-14）
 
-  渡された数を一度ずつ全部使う規則を入れると、道が1〜3通りへ落ちる。
-  「7を最後に使うと9を超える、だから先に使う」という逆算が要る。
+  試作3を測って分かった原因は**規模**だった。
+  「簡単すぎる」を直すために記号も使い切りにしたが、記号は4つしか無いので
+  盤面が4行で頭打ちになる。**難しくした仕組みが、盤面が育たない理由そのもの。**
+  全10問を合わせても置く手は36個しか無かった。
 
-  確かめたいのは1点だけ。**間を埋めて先の道が繋がるのが面白いか。**
+  直し方は、希少さを盤面の大きさに比例させること。記号を各3回にすると12本まで伸びる。
+  駅を3×3に並べて1〜9を1つずつ置くと、**駅が縦の道と横の道の両方に属する**。
+  試作2が落ちた「縦と横が独立」を、共有する駅を増やすことで解く。
 
-  正解判定はこの画面に無い。生成器が作った対応表を引くだけ（INC-2026-08-13-005）。
+  確かめたいのは1点だけ。**盤面が3倍になって、消去法の連鎖が続くのが面白いか。**
+
+  正解判定も計算もこの画面に無い。生成器が作った対応表を引くだけ（INC-2026-08-13-005）。
   見た目は `_nect-shared/nect.css`（コトネクトのアートディレクション）。
 -->
 <link rel="stylesheet" href="nect.css">
 <style>
   /*
-   * 道。**1手ぶんを1行の式として出す。**
+   * 広場。5列×5行の格子に、駅（偶数行・偶数列）と道（残り）を置く。
    *
-   * 最初は `3 □□ ? □□ ?` と、演算子と数だけを並べていた。ようすけさん判定
-   * 「＝を使わないと最初よく分からん」。式に見えないと、何をする画面なのかが伝わらない。
-   * 行ごとに `前の答え 記号 数 = 答え` と読める形にする。
+   *   駅 道 駅 道 駅
+   *   道    道    道
+   *   駅 道 駅 道 駅
+   *   道    道    道
+   *   駅 道 駅 道 駅
    *
-   * 前の行の答えが次の行の頭になる。**間を埋めると次の行の頭が決まる**ことが、
-   * 縦に並べると一目で分かる（企画正本の「繋ぐ」）。
+   * 1画面に収める（2026-08-13・ようすけさん実機報告への対応を継承）。
+   * マスの大きさは画面の幅と高さの小さいほうに従わせ、はみ出す余地を盤面が吸収する。
    */
-  .road { display: flex; flex-direction: column; gap: 0.25rem; align-items: center;
-    --cell: clamp(1.8rem, min(11vw, 5.2vh), 2.8rem); }
-  .row { display: flex; gap: 0.22rem; align-items: center; }
-  .road .nect-tile {
+  .plaza {
+    display: grid;
+    grid-template-columns: repeat(5, auto);
+    gap: 0.2rem;
+    justify-content: center;
+    align-items: center;
+    --cell: clamp(1.7rem, min(9.5vw, 5vh), 2.6rem);
+  }
+  .plaza .nect-tile {
     width: var(--cell); height: var(--cell);
-    font-size: clamp(0.85rem, 4.6vw, 1.25rem);
+    font-size: clamp(0.85rem, 4.4vw, 1.2rem);
     border-radius: 0.4rem;
   }
-  /* 等号は操作対象ではないので、枠を持たせず記号だけを置く。 */
-  .eq { width: calc(var(--cell) * 0.7); text-align: center; color: var(--dim);
-    font-size: clamp(0.8rem, 4vw, 1.1rem); }
-  .station--goal { border-color: var(--hot); color: var(--hot); }
+  /* まだ分かっていない駅。伏せてあるだけで、埋まる場所であることは見せる。 */
   .station--unknown { color: var(--dim); border-style: dashed; }
-  .row.is-current .nect-tile--blank { border-color: var(--accent); }
-  /* まだ手が決まっていない行は、これから来る道として控えめに見せる。 */
-  .row.is-future { opacity: 0.45; }
+  /* 最初から見せてある駅（数独でいうヒントのマス）。 */
+  .station--hint { border-color: var(--accent); }
 
-  .goal-line { font-size: var(--fs-strong); color: var(--dim); text-align: center; }
-  .goal-line b { color: var(--fg); font-size: var(--fs-lead); }
+  /*
+   * 道1本。`記号` と `数` を並べて持つ。**道ごと1つの操作対象**にする。
+   * 記号と数を別々のマスにすると、12本×2＝24個の的を選ぶことになり、
+   * 小さい画面で押し分けられない。
+   */
+  .edge {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0.1rem;
+    min-width: calc(var(--cell) * 1.25);
+    height: calc(var(--cell) * 0.86);
+    padding: 0 0.15rem;
+    border: 2px dashed var(--box-border);
+    border-radius: 0.4rem;
+    background: var(--box-bg);
+    color: var(--accent);
+    font-size: clamp(0.72rem, 3.6vw, 1rem);
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: var(--bevel);
+    transition: border-color var(--speed) ease, box-shadow var(--speed) ease;
+  }
+  .edge.is-filled { border-style: solid; }
+  .edge.is-selected { border-color: var(--accent); animation: nect-breathe 1.6s ease-in-out infinite; }
+  .edge__op { color: var(--accent); }
+  .edge__num { color: var(--fg); }
+  .edge__slot { color: var(--dim); opacity: 0.55; }
+  .plaza .gap { width: 1px; height: 1px; }
 
-  /* 使う数。使ったら消える。残りが見えることが逆算の材料になる。 */
-  .hand { display: flex; gap: 0.4rem; align-items: center; font-size: var(--fs-aux); color: var(--dim); }
-  .hand-chip {
-    min-width: 1.7rem; padding: 0.15rem 0.35rem; text-align: center;
+  /* 材料。使ったら消える。残りが見えることが消去法の材料になる。 */
+  .pool { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center; align-items: center; }
+  .pool-chip {
+    min-width: 1.5rem; padding: 0.1rem 0.3rem; text-align: center;
     border: 1px solid var(--box-border); border-radius: 0.35rem;
     color: var(--fg); font-size: var(--fs-body); font-weight: 700;
   }
-  .hand-chip.is-used { opacity: 0.28; text-decoration: line-through; }
-  .hand-chip--op { color: var(--accent); }
-  .hand { flex-wrap: wrap; justify-content: center; }
+  .pool-chip.is-used { opacity: 0.25; text-decoration: line-through; }
+  .pool-chip--op { color: var(--accent); display: inline-flex; align-items: baseline; gap: 0.15rem; }
+  .pool-left { font-size: var(--fs-aux); font-weight: 600; color: var(--dim); }
+  .pool-label { font-size: var(--fs-aux); color: var(--dim); }
 
   .nect-pad button:disabled { opacity: 0.25; cursor: default; }
-  .found-list { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; justify-content: center;
-    font-size: var(--fs-aux); color: var(--dim); min-height: 1.1em; }
 </style>
 </head>
 <body>
@@ -77,13 +109,10 @@
   </header>
 
   <main class="nect-stage">
-    <div class="goal-line" id="goalLine"></div>
-    <p class="nect-note">数も記号も、ぜんぶ一度ずつ使う</p>
-    <div class="road" id="road"></div>
-    <div class="hand" id="hand"></div>
-    <div class="nect-pips" id="pips"></div>
+    <p class="nect-note">駅は1〜9をひとつずつ。記号は各3回、数はぜんぶ使い切る</p>
+    <div class="plaza" id="plaza"></div>
+    <div class="pool" id="pool"></div>
     <div class="nect-msg" id="msg"></div>
-    <div class="found-list" id="foundList"></div>
   </main>
 
   <div class="nect-pad">
@@ -92,143 +121,81 @@
     <div class="nect-pad__row nect-pad__row--ops" id="row3"></div>
   </div>
   <div class="nect-actions">
-    <button id="clear">この行を消す</button>
+    <button id="clear">この道を消す</button>
     <button id="next" class="is-primary">つぎの問題</button>
   </div>
 </div>
 
-<script src="hand-puzzles.js"></script>
+<script src="plaza-puzzles.js"></script>
 <script>
 (function () {
   "use strict";
-  const PUZZLES = window.KAZUNECT_PUZZLES || [];
+  const PUZZLES = window.KAZUNECT_PLAZA || [];
+  const EDGES = window.KAZUNECT_PLAZA_EDGES || [];
   const STEPS = window.KAZUNECT_STEPS || {};   // "元の数|記号|使う数" → 答え
+  const OPS = ["+", "-", "×", "÷"];
+  const OP_QUOTA = 3;
   const $ = (id) => document.getElementById(id);
   const glyph = (t) => (t === "-" ? "−" : t);
 
   let index = 0;
-  /*
-   * 行ごとの手。**どの行から埋めてもよい。**
-   *
-   * 最初は先頭から順にしか置けなかった。ようすけさん判定「数独のように、ここの
-   * マスにはこれしかあり得ないからまずここを埋める、という解き方ができればいいが、
-   * 頭の中だけで何手も暗算を繰り返すのは普通の子供にはキツい」。
-   *
-   * 順番を強制すると、1手置くために先まで暗算で読む必要が出る。**どこからでも
-   * 置けるようにすると、決まる場所から埋められ、途中の数は盤面が覚えてくれる。**
-   */
-  let moves = [];      // 行番号 → {op, operand} または null
-  let selected = 0;    // いま入力対象の行
+  let moves = [];       // 道の番号 → {op, operand} または null
+  let selected = 0;     // いま入力対象の道
   let pendingOp = null;
-  let found = [];
 
   const puzzle = () => PUZZLES[index];
 
   /**
-   * いま置かれている手と矛盾しない道を絞る。
+   * 各駅の数を求める。**置いた手から辿って決まる分だけ**を出す。
    *
-   * **計算はここでしない。** 生成器が出した道のうち、置かれた手と全部一致するものを
-   * 残すだけ。同じ計算規則を画面へ書くと片方だけ直されてズレる（INC-2026-08-13-005）。
-   */
-  function consistentRoutes(trial) {
-    const p = puzzle();
-    const state = trial ?? moves;
-    return p.routes.filter((route) =>
-      state.every((m, n) => !m || (route[n].op === m.op && route[n].operand === m.operand)));
-  }
-
-  /**
-   * 各駅の数を求める。**局所的に決まる分だけ**を出す。
+   * 試作3で学んだこと: 「矛盾しない答えが1つに絞れたら全部見せる」ようにすると、
+   * 数手置いた時点で盤面が残りを教えてしまう。数独は勝手にマスを埋めない。
+   * 隣から辿って決まる分だけを出す。
    *
-   * 最初は「矛盾しない道が1本に絞れたら全部見せる」実装にしていたが、それだと
-   * 2行埋めた時点で途中の駅が全部現れ、**盤面が答えを教えてしまう**。
-   * 数独は勝手にマスを埋めない。隣から辿って決まる分だけを出す。
-   *
-   *   前向き: スタートが分かっていて、その行が埋まっていれば、次の駅が決まる
-   *   後ろ向き: ゴールが分かっていて、その行が埋まっていれば、手前の駅が決まる
-   *
-   * 両端から埋めれば真ん中で出会う。これが「ここしかあり得ない場所から埋める」遊び。
+   * **計算はここでしない。** 生成器が渡した対応表を引くだけ（INC-2026-08-13-005）。
    */
   function stationValues() {
     const p = puzzle();
-    const n = p.hand.length;
-    const known = new Array(n + 1).fill(null);
-    known[0] = Number(p.start);
-    known[n] = Number(p.goal);
-    /*
-     * 最初から見せる駅（数独でいうヒントのマス）。
-     *
-     * 鎖の手がかりは両端しか無いので、これが無いと「どの行も決まらない」状態が生まれ、
-     * 当てずっぽうで置くしかなくなる。生成器は**この駅を見せた状態で論理だけで解ける**
-     * ことを確かめた問題だけを出している（ようすけさん指摘「そういうロジックで
-     * 解いていけるように問題を作る必要もある」）。
-     */
-    for (const [i, v] of Object.entries(p.given ?? {})) known[Number(i)] = v;
+    const known = new Array(9).fill(null);
+    for (const [i, v] of Object.entries(p.hints)) known[Number(i)] = v;
 
-    // 決まるものが無くなるまで、前向き・後ろ向きの両方を繰り返す。
-    for (let pass = 0; pass < n + 1; pass++) {
-      for (let i = 0; i < n; i++) {
-        const m = moves[i];
-        if (!m) continue;
-        if (known[i] !== null && known[i + 1] === null) {
-          const to = STEPS[`${known[i]}|${m.op}|${m.operand}`];
-          if (to !== undefined) known[i + 1] = to;
+    for (let pass = 0; pass < EDGES.length; pass++) {
+      let moved = false;
+      EDGES.forEach(([a, b], e) => {
+        const m = moves[e];
+        if (!m) return;
+        if (known[a] !== null && known[b] === null) {
+          const to = STEPS[`${known[a]}|${m.op}|${m.operand}`];
+          if (to !== undefined) { known[b] = to; moved = true; }
         }
-        if (known[i + 1] !== null && known[i] === null) {
-          // 同じ手で目的の数になる「元の数」を1〜9から探す。複数あれば決まらない。
-          const cands = [];
+        if (known[b] !== null && known[a] === null) {
+          // 同じ手でその駅になる「元の数」を1〜9から探す。複数あれば決まらない。
+          const c = [];
           for (let x = 1; x <= 9; x++) {
-            if (STEPS[`${x}|${m.op}|${m.operand}`] === known[i + 1]) cands.push(x);
+            if (STEPS[`${x}|${m.op}|${m.operand}`] === known[b]) c.push(x);
           }
-          if (cands.length === 1) known[i] = cands[0];
+          if (c.length === 1) { known[a] = c[0]; moved = true; }
         }
-      }
+      });
+      if (!moved) break;
     }
     return known;
   }
 
-  function load(i) {
-    index = i;
-    moves = new Array(PUZZLES[i].hand.length).fill(null);
-    selected = 0;
-    pendingOp = null;
-    found = [];
-    setMsg("", false);
-    render();
-  }
-
-  function setMsg(text, warn) {
-    const el = $("msg");
-    el.textContent = text;
-    el.className = "nect-msg" + (warn ? " nect-msg--warn" : "");
-  }
-
-  const remainingHand = () => {
-    const p = puzzle();
-    const used = moves.filter(Boolean).map((m) => m.operand);
-    const rest = [...p.hand];
-    for (const u of used) {
-      const at = rest.indexOf(u);
+  const remainingNums = () => {
+    const rest = [...puzzle().pool];
+    for (const m of moves) {
+      if (!m) continue;
+      const at = rest.indexOf(m.operand);
       if (at !== -1) rest.splice(at, 1);
     }
     return rest;
   };
 
-  /**
-   * まだ使っていない記号。**記号も使い切り。**
-   *
-   * 数だけを希少にすると、上級（同時に3個の候補を抱える）が実測2件しか作れなかった。
-   * 記号も希少にすると170件になり、消去法が「どの数を」と「どの記号を」の
-   * 二次元になる（数独の行と列と同じ構造）。
-   */
   const remainingOps = () => {
-    const used = moves.filter(Boolean).map((m) => m.op);
-    const rest = ["+", "-", "×", "÷"];
-    for (const u of used) {
-      const at = rest.indexOf(u);
-      if (at !== -1) rest.splice(at, 1);
-    }
-    return rest;
+    const left = Object.fromEntries(OPS.map((o) => [o, OP_QUOTA]));
+    for (const m of moves) if (m) left[m.op]--;
+    return left;
   };
 
   function tile(cls, text) {
@@ -242,134 +209,151 @@
     const p = puzzle();
     $("progress").textContent = `問題 ${index + 1} / ${PUZZLES.length}`;
     $("band").textContent = p.band;
-    $("goalLine").innerHTML = `<b>${p.start}</b> から <b>${p.goal}</b> へ`;
 
-    const road = $("road");
-    road.innerHTML = "";
+    const plaza = $("plaza");
+    plaza.innerHTML = "";
     const known = stationValues();
 
-    for (let n = 0; n < p.hand.length; n++) {
-      const m = moves[n];
-      const last = n === p.hand.length - 1;
-      const from = known[n];
-      const to = known[n + 1];
-
-      const row = document.createElement("div");
-      row.className = "row" + (n === selected ? " is-current" : "");
-      // 行をタップして、そこから埋められる。決まる場所から手をつけられるようにする。
-      row.addEventListener("click", () => { selected = n; pendingOp = null; render(); });
-
-      const fromText = from === null ? "?" : String(from);
-      row.appendChild(tile(
-        "nect-tile " + (fromText === "?" ? "station--unknown" : "nect-tile--fixed"), fromText));
-
-      const opText = m ? glyph(m.op) : (n === selected && pendingOp ? glyph(pendingOp) : "");
-      const numText = m ? m.operand : "";
-      row.appendChild(tile("nect-tile nect-tile--blank" + (opText ? " is-filled" : ""), opText));
-      row.appendChild(tile("nect-tile nect-tile--blank" + (numText ? " is-filled" : ""), numText));
-      row.appendChild(tile("eq", "="));
-
-      const toText = to === null ? "?" : String(to);
-      row.appendChild(tile(
-        "nect-tile " + (toText === "?" ? "station--unknown" : "nect-tile--fixed")
-        + (last ? " station--goal" : ""), toText));
-      road.appendChild(row);
+    // 5×5の格子へ、駅と道を置く。
+    for (let gr = 0; gr < 5; gr++) {
+      for (let gc = 0; gc < 5; gc++) {
+        const r = gr / 2, c = gc / 2;
+        let el;
+        if (gr % 2 === 0 && gc % 2 === 0) {
+          const s = r * 3 + c;
+          const v = known[s];
+          const isHint = p.hints[s] !== undefined;
+          el = tile("nect-tile " + (v === null ? "station--unknown"
+            : "nect-tile--fixed" + (isHint ? " station--hint" : "")), v === null ? "?" : String(v));
+        } else if (gr % 2 === 0) {
+          el = edgeEl(r * 2 + (gc - 1) / 2);                 // 横の道
+        } else if (gc % 2 === 0) {
+          el = edgeEl(6 + c * 2 + (gr - 1) / 2);             // 縦の道
+        } else {
+          el = tile("gap", "");
+        }
+        el.style.gridRow = gr + 1;
+        el.style.gridColumn = gc + 1;
+        plaza.appendChild(el);
+      }
     }
 
-    const hand = $("hand");
-    hand.innerHTML = "<span>使う</span>";
-    const rest = remainingHand();
+    const pool = $("pool");
+    pool.innerHTML = "";
+    pool.appendChild(tile("pool-label", "数"));
+    const rest = remainingNums();
     const restCopy = [...rest];
-    for (const d of p.hand) {
+    for (const d of p.pool) {
       const at = restCopy.indexOf(d);
       const used = at === -1;
       if (!used) restCopy.splice(at, 1);
-      hand.appendChild(tile("hand-chip" + (used ? " is-used" : ""), d));
+      pool.appendChild(tile("pool-chip" + (used ? " is-used" : ""), d));
     }
-    // 記号も使い切り。残りが見えることが消去法の材料になる。
-    const restOps = remainingOps();
-    for (const o of ["+", "-", "×", "÷"]) {
-      hand.appendChild(tile("hand-chip hand-chip--op" + (restOps.includes(o) ? "" : " is-used"), glyph(o)));
+    pool.appendChild(tile("pool-label", "記号"));
+    const opLeft = remainingOps();
+    for (const o of OPS) {
+      /*
+       * 記号と残り回数は**別の字**にする。`+3` と1つに並べると「3を足す」に読める
+       * （実機の見た目で確認）。記号を大きく、残りを小さく添える。
+       */
+      const chip = tile("pool-chip pool-chip--op" + (opLeft[o] === 0 ? " is-used" : ""), "");
+      const g = document.createElement("span");
+      g.textContent = glyph(o);
+      const left = document.createElement("span");
+      left.className = "pool-left";
+      left.textContent = `のこり${opLeft[o]}`;
+      chip.append(g, left);
+      pool.appendChild(chip);
     }
-
-    const pips = $("pips");
-    pips.innerHTML = "";
-    for (let k = 0; k < p.routes.length; k++) {
-      pips.appendChild(tile("nect-pip" + (found.includes(k) ? " is-on" : ""), ""));
-    }
-
-    $("foundList").innerHTML = found.map((k) => {
-      const r = p.routes[k];
-      return `<span>${p.start} ${r.map((s) => glyph(s.op) + s.operand).join(" ")}</span>`;
-    }).join("");
 
     // 使える数・記号だけを押せるようにする。押してから弾かれるより、押せないほうが早い。
     for (const b of document.querySelectorAll("#row1 button, #row2 button")) {
       b.disabled = !rest.includes(b.dataset.value);
     }
     for (const b of document.querySelectorAll("#row3 button")) {
-      b.disabled = !restOps.includes(b.dataset.value);
+      b.disabled = opLeft[b.dataset.value] === 0;
     }
     $("next").textContent = index + 1 >= PUZZLES.length ? "さいしょへ" : "つぎの問題";
   }
 
-  function place(kind, value) {
-    const p = puzzle();
+  function edgeEl(e) {
+    const m = moves[e];
+    const el = document.createElement("div");
+    el.className = "edge" + (m ? " is-filled" : "") + (e === selected ? " is-selected" : "");
+    // 画面へ並べる順（格子を左上から走査）と道の番号は一致しない。番号を持たせておく。
+    el.dataset.edge = String(e);
+    const op = m ? glyph(m.op) : (e === selected && pendingOp ? glyph(pendingOp) : "");
+    const num = m ? m.operand : "";
+    const opEl = document.createElement("span");
+    opEl.className = op ? "edge__op" : "edge__slot";
+    opEl.textContent = op || "・";
+    const numEl = document.createElement("span");
+    numEl.className = num ? "edge__num" : "edge__slot";
+    numEl.textContent = num || "・";
+    el.append(opEl, numEl);
+    el.addEventListener("click", () => { selected = e; pendingOp = null; render(); });
+    return el;
+  }
 
+  function reject(text) {
+    pendingOp = null;
+    render();
+    const plaza = $("plaza");
+    plaza.classList.add("nect-rejected");
+    setMsg(text, true);
+    setTimeout(() => plaza.classList.remove("nect-rejected"), 300);
+  }
+
+  function setMsg(text, warn) {
+    const el = $("msg");
+    el.textContent = text;
+    el.className = "nect-msg" + (warn ? " nect-msg--warn" : "");
+  }
+
+  function place(kind, value) {
     if (kind === "op") { pendingOp = value; render(); return; }
     if (pendingOp === null) { setMsg("さきに記号をえらぶ", true); return; }
 
     /*
-     * **その場で分かる範囲だけを弾く。** 元の数が分かっている行で、その手が
-     * 成り立たない（9を超える・0以下になる・割り切れない）場合だけ拒む。
+     * **その場で分かる範囲だけを弾く。**
      *
-     * 「どの道にも合わないから」という理由で拒むのはやめた。それをやると、
-     * 押して弾かれるのを繰り返すだけで正解に辿り着けてしまい、総当たりが
-     * また最適戦略になる（試作1で潰したはずの問題が別の形で戻る）。
-     * 数独と同じで、局所的に置ける手は置けてよく、間違いは後で分かる。
+     * 「どの解にも合わないから」という理由で拒むのはやめる。それをやると、押して
+     * 弾かれるのを繰り返すだけで正解に辿り着けてしまい、総当たりがまた最適戦略に
+     * なる（試作1で潰したはずの問題が別の形で戻る）。
+     *
+     * 弾くのは、盤面を見れば人にも分かる2つだけ。
+     *   1. その手では1〜9からはみ出す（割り切れないを含む）
+     *   2. できる駅の数が、すでに別の駅で使われている（1〜9をひとつずつ）
      */
     const known = stationValues();
-    if (known[selected] !== null
-        && STEPS[`${known[selected]}|${pendingOp}|${value}`] === undefined) {
-      pendingOp = null;
-      render();
-      const road = $("road");
-      road.classList.add("nect-rejected");
-      setMsg("その手では1〜9からはみ出す", true);
-      setTimeout(() => road.classList.remove("nect-rejected"), 300);
-      return;
+    const [a, b] = EDGES[selected];
+    if (known[a] !== null) {
+      const to = STEPS[`${known[a]}|${pendingOp}|${value}`];
+      if (to === undefined) { reject("その手では1〜9からはみ出す"); return; }
+      if (known[b] === null && known.includes(to)) { reject(`${to}の駅はもうある`); return; }
+      if (known[b] !== null && to !== known[b]) { reject("その手では先の駅に合わない"); return; }
     }
 
-    const trial = moves.slice();
-    trial[selected] = { op: pendingOp, operand: value };
-    moves = trial;
+    moves[selected] = { op: pendingOp, operand: value };
     pendingOp = null;
-    // 次に空いている行へ送る。無ければその場に留まる。
     const nextEmpty = moves.findIndex((m) => m === null);
     if (nextEmpty !== -1) selected = nextEmpty;
     render();
-    $("road").classList.add("nect-connected");
-    setTimeout(() => $("road").classList.remove("nect-connected"), 500);
+    $("plaza").classList.add("nect-connected");
+    setTimeout(() => $("plaza").classList.remove("nect-connected"), 500);
 
     if (moves.every(Boolean)) finish();
     else setMsg("繋がった", false);
   }
 
+  /**
+   * 全部置けたかを確かめる。**答えは一意**（解答器が強制される手だけで解けた問題しか
+   * 出していない）ので、生成器が渡した解と突き合わせるだけ。ここでも計算はしない。
+   */
   function finish() {
     const p = puzzle();
-    const key = moves.map((m) => `${m.op}${m.operand}`).join(" ");
-    const hit = p.accepted[key];
-    if (hit === undefined) { setMsg("この道ではゴールに届かない", true); return; }
-    if (found.includes(hit)) { setMsg("それはもう見つけた道", true); return; }
-
-    found.push(hit);
-    render();
-    const left = p.routes.length - found.length;
-    setMsg(left === 0 ? "ぜんぶ繋がった" : `ゴール　のこり ${left} 通り`, false);
-    if (left > 0) setTimeout(() => {
-      moves = new Array(p.hand.length).fill(null);
-      selected = 0; pendingOp = null; render();
-    }, 900);
+    const ok = p.edges.every((e, i) => moves[i].op === e.op && moves[i].operand === e.operand);
+    setMsg(ok ? "ぜんぶ繋がった" : "どこかの道が合っていない", !ok);
   }
 
   const fill = (row, list, kind) => {
@@ -383,24 +367,37 @@
   };
   fill($("row1"), ["1", "2", "3", "4", "5"], "num");
   fill($("row2"), ["6", "7", "8", "9"], "num");
-  fill($("row3"), ["+", "-", "×", "÷"], "op");
+  fill($("row3"), OPS, "op");
 
   $("clear").addEventListener("click", () => {
     /*
-     * 選んでいる行だけを消す。全部やり直させない（数独で1マス消すのと同じ感覚）。
-     * ただし全部埋まっている時と、選んだ行がもともと空の時は、まとめて消す。
+     * 選んでいる道だけを消す。全部やり直させない（数独で1マス消すのと同じ感覚）。
+     *
+     * 試作3には「全部埋まっている時はまとめて消す」という例外があった。3〜4手の
+     * 盤面ではそれでよかったが、**12本では置き違いが1本あるだけで全部消える**。
+     * 直したい1本を選んで消せることのほうが大事なので、例外を外した。
+     * まとめて消したい時は、まだ空いている道を選んでから押す。
      */
-    if (moves.every(Boolean) || !moves[selected]) moves = new Array(puzzle().hand.length).fill(null);
+    if (!moves[selected]) moves = new Array(EDGES.length).fill(null);
     else moves[selected] = null;
-    selected = moves.findIndex((m) => m === null);
-    if (selected === -1) selected = 0;
+    const empty = moves.findIndex((m) => m === null);
+    selected = empty === -1 ? 0 : empty;
     pendingOp = null;
     setMsg("", false);
     render();
   });
+
+  function load(i) {
+    index = i;
+    moves = new Array(EDGES.length).fill(null);
+    selected = 0;
+    pendingOp = null;
+    setMsg("", false);
+    render();
+  }
   $("next").addEventListener("click", () => load((index + 1) % PUZZLES.length));
 
-  if (PUZZLES.length === 0) $("msg").textContent = "問題データが読み込めていません（hand-puzzles.js）";
+  if (PUZZLES.length === 0) $("msg").textContent = "問題データが読み込めていません（plaza-puzzles.js）";
   else load(0);
 })();
 </script>
