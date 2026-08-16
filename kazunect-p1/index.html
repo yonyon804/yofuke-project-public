@@ -42,7 +42,7 @@
    */
   .plaza {
     display: grid;
-    grid-template-columns: repeat(5, auto);
+    grid-template-columns: repeat(var(--cols, 5), auto);
     gap: 0.2rem;
     justify-content: center;
     align-items: center;
@@ -109,7 +109,7 @@
   </header>
 
   <main class="nect-stage">
-    <p class="nect-note">駅は1〜9をひとつずつ。記号は各3回、数はぜんぶ使い切る</p>
+    <p class="nect-note" id="rule"></p>
     <div class="plaza" id="plaza"></div>
     <div class="pool" id="pool"></div>
     <div class="nect-msg" id="msg"></div>
@@ -131,10 +131,22 @@
 (function () {
   "use strict";
   const PUZZLES = window.KAZUNECT_PLAZA || [];
-  const EDGES = window.KAZUNECT_PLAZA_EDGES || [];
   const STEPS = window.KAZUNECT_STEPS || {};   // "元の数|記号|使う数" → 答え
   const OPS = ["+", "-", "×", "÷"];
-  const OP_QUOTA = 3;
+
+  /*
+   * 盤面の大きさは問題ごとに違う（初級2×3・中級2×4・上級3×3）。
+   * **1手あたりの重さを人が数えられる大きさに固定したまま、長さで難易度を作る**
+   * ため（2026-08-16。`tools/gen-plaza.mjs` 冒頭）。
+   * 道の並びは生成器と同じ規則で作る。横をぜんぶ並べてから縦。
+   */
+  const edgesOf = (p) => {
+    const E = [];
+    for (let r = 0; r < p.rows; r++) for (let c = 0; c < p.cols - 1; c++) E.push([r * p.cols + c, r * p.cols + c + 1]);
+    for (let c = 0; c < p.cols; c++) for (let r = 0; r < p.rows - 1; r++) E.push([r * p.cols + c, (r + 1) * p.cols + c]);
+    return E;
+  };
+  const stationCount = (p) => p.rows * p.cols;
   const $ = (id) => document.getElementById(id);
   const glyph = (t) => (t === "-" ? "−" : t);
 
@@ -156,7 +168,9 @@
    */
   function stationValues() {
     const p = puzzle();
-    const known = new Array(9).fill(null);
+    const EDGES = edgesOf(p);
+    const hi = stationCount(p);
+    const known = new Array(hi).fill(null);
     for (const [i, v] of Object.entries(p.hints)) known[Number(i)] = v;
 
     for (let pass = 0; pass < EDGES.length; pass++) {
@@ -169,9 +183,9 @@
           if (to !== undefined) { known[b] = to; moved = true; }
         }
         if (known[b] !== null && known[a] === null) {
-          // 同じ手でその駅になる「元の数」を1〜9から探す。複数あれば決まらない。
+          // 同じ手でその駅になる「元の数」を1〜(駅の数)から探す。複数あれば決まらない。
           const c = [];
-          for (let x = 1; x <= 9; x++) {
+          for (let x = 1; x <= hi; x++) {
             if (STEPS[`${x}|${m.op}|${m.operand}`] === known[b]) c.push(x);
           }
           if (c.length === 1) { known[a] = c[0]; moved = true; }
@@ -193,7 +207,7 @@
   };
 
   const remainingOps = () => {
-    const left = Object.fromEntries(OPS.map((o) => [o, OP_QUOTA]));
+    const left = Object.fromEntries(OPS.map((o) => [o, puzzle().quota[o] ?? 0]));
     for (const m of moves) if (m) left[m.op]--;
     return left;
   };
@@ -209,26 +223,29 @@
     const p = puzzle();
     $("progress").textContent = `問題 ${index + 1} / ${PUZZLES.length}`;
     $("band").textContent = p.band;
+    $("rule").textContent = `駅は1〜${stationCount(p)}をひとつずつ。数はぜんぶ使い切る`;
 
     const plaza = $("plaza");
     plaza.innerHTML = "";
     const known = stationValues();
+    const gRows = p.rows * 2 - 1, gCols = p.cols * 2 - 1;
+    plaza.style.setProperty("--cols", String(gCols));
 
-    // 5×5の格子へ、駅と道を置く。
-    for (let gr = 0; gr < 5; gr++) {
-      for (let gc = 0; gc < 5; gc++) {
+    // (駅の数×2-1) の格子へ、駅と道を置く。
+    for (let gr = 0; gr < gRows; gr++) {
+      for (let gc = 0; gc < gCols; gc++) {
         const r = gr / 2, c = gc / 2;
         let el;
         if (gr % 2 === 0 && gc % 2 === 0) {
-          const s = r * 3 + c;
+          const s = r * p.cols + c;
           const v = known[s];
           const isHint = p.hints[s] !== undefined;
           el = tile("nect-tile " + (v === null ? "station--unknown"
             : "nect-tile--fixed" + (isHint ? " station--hint" : "")), v === null ? "?" : String(v));
         } else if (gr % 2 === 0) {
-          el = edgeEl(r * 2 + (gc - 1) / 2);                 // 横の道
+          el = edgeEl(r * (p.cols - 1) + (gc - 1) / 2);                        // 横の道
         } else if (gc % 2 === 0) {
-          el = edgeEl(6 + c * 2 + (gr - 1) / 2);             // 縦の道
+          el = edgeEl(p.rows * (p.cols - 1) + c * (p.rows - 1) + (gr - 1) / 2); // 縦の道
         } else {
           el = tile("gap", "");
         }
@@ -326,7 +343,7 @@
      *   2. できる駅の数が、すでに別の駅で使われている（1〜9をひとつずつ）
      */
     const known = stationValues();
-    const [a, b] = EDGES[selected];
+    const [a, b] = edgesOf(puzzle())[selected];
     if (known[a] !== null) {
       const to = STEPS[`${known[a]}|${pendingOp}|${value}`];
       if (to === undefined) { reject("その手では1〜9からはみ出す"); return; }
@@ -378,7 +395,7 @@
      * 直したい1本を選んで消せることのほうが大事なので、例外を外した。
      * まとめて消したい時は、まだ空いている道を選んでから押す。
      */
-    if (!moves[selected]) moves = new Array(EDGES.length).fill(null);
+    if (!moves[selected]) moves = new Array(edgesOf(puzzle()).length).fill(null);
     else moves[selected] = null;
     const empty = moves.findIndex((m) => m === null);
     selected = empty === -1 ? 0 : empty;
@@ -389,7 +406,7 @@
 
   function load(i) {
     index = i;
-    moves = new Array(EDGES.length).fill(null);
+    moves = new Array(edgesOf(puzzle()).length).fill(null);
     selected = 0;
     pendingOp = null;
     setMsg("", false);
