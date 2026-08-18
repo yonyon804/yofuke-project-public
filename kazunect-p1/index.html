@@ -54,7 +54,24 @@
     border-radius: 0.4rem;
   }
   /* まだ分かっていない駅。伏せてあるだけで、埋まる場所であることは見せる。 */
-  .station--unknown { color: var(--dim); border-style: dashed; }
+  .station--unknown { color: var(--dim); border-style: dashed; position: relative; }
+  /* いまメモを書く対象に選んでいる駅。 */
+  .station--picked { border-color: var(--accent); border-style: solid; animation: nect-breathe 1.6s ease-in-out infinite; }
+  /*
+   * 自分で書いた候補メモ（数独の鉛筆メモ）。**機械は何も計算しない。**
+   * 目立つ色で小さく並べ、消したい数字だけ消せる（2026-08-16・ようすけさん要望）。
+   */
+  .station__notes {
+    position: absolute; inset: 1px;
+    display: grid; gap: 0;
+    align-items: center; justify-items: center;
+    font-size: clamp(0.4rem, 1.9vw, 0.55rem);
+    line-height: 1;
+    color: var(--accent);
+    font-weight: 700;
+    pointer-events: none;
+  }
+  .station__notes span { opacity: 0.95; }
   /* 最初から見せてある駅（数独でいうヒントのマス）。 */
   .station--hint { border-color: var(--accent); }
 
@@ -154,6 +171,13 @@
   let moves = [];       // 道の番号 → {op, operand} または null
   let selected = 0;     // いま入力対象の道
   let pendingOp = null;
+  /*
+   * 駅の候補メモ（駅の番号 → 数字のSet）。**プレイヤーが自分で書く。**
+   * 機械が候補を計算して見せるのとは別物で、こちらは総当たりの助けにならない
+   * （2026-08-16・ようすけさん要望。数独の鉛筆メモと同じ）。
+   */
+  let notes = [];
+  let pickedStation = null;   // メモを書く対象に選んでいる駅。選んでいなければ null
 
   const puzzle = () => PUZZLES[index];
 
@@ -223,11 +247,19 @@
     const p = puzzle();
     $("progress").textContent = `問題 ${index + 1} / ${PUZZLES.length}`;
     $("band").textContent = p.band;
-    $("rule").textContent = `駅は1〜${stationCount(p)}をひとつずつ。数はぜんぶ使い切る`;
+    $("rule").textContent = `駅は1〜${stationCount(p)}をひとつずつ。数はぜんぶ使い切る（? を押すとメモ）`;
 
     const plaza = $("plaza");
     plaza.innerHTML = "";
     const known = stationValues();
+    /*
+     * 決まった駅のメモは役目を終えるので消す。選んだままにもしない。
+     * 残すと「もう答えが出ているマスに候補が並ぶ」ことになり、盤面が嘘をつく。
+     */
+    for (let i = 0; i < known.length; i++) {
+      if (known[i] !== null && notes[i] && notes[i].size) notes[i] = new Set();
+    }
+    if (pickedStation !== null && known[pickedStation] !== null) pickedStation = null;
     const gRows = p.rows * 2 - 1, gCols = p.cols * 2 - 1;
     plaza.style.setProperty("--cols", String(gCols));
 
@@ -238,10 +270,7 @@
         let el;
         if (gr % 2 === 0 && gc % 2 === 0) {
           const s = r * p.cols + c;
-          const v = known[s];
-          const isHint = p.hints[s] !== undefined;
-          el = tile("nect-tile " + (v === null ? "station--unknown"
-            : "nect-tile--fixed" + (isHint ? " station--hint" : "")), v === null ? "?" : String(v));
+          el = stationEl(s, known[s], p.hints[s] !== undefined);
         } else if (gr % 2 === 0) {
           el = edgeEl(r * (p.cols - 1) + (gc - 1) / 2);                        // 横の道
         } else if (gc % 2 === 0) {
@@ -284,13 +313,53 @@
     }
 
     // 使える数・記号だけを押せるようにする。押してから弾かれるより、押せないほうが早い。
+    const noteMode = pickedStation !== null;
     for (const b of document.querySelectorAll("#row1 button, #row2 button")) {
-      b.disabled = !rest.includes(b.dataset.value);
+      const n = Number(b.dataset.value);
+      /*
+       * メモの時は「駅に入りうる数」＝1〜駅の数のうち、まだ盤面に出ていないもの。
+       * ここまでは盤面を見れば人にも分かる範囲なので、機械が推理を肩代わりしたことにならない。
+       */
+      b.disabled = noteMode
+        ? (n > stationCount(p) || known.includes(n))
+        : !rest.includes(b.dataset.value);
     }
     for (const b of document.querySelectorAll("#row3 button")) {
-      b.disabled = opLeft[b.dataset.value] === 0;
+      b.disabled = noteMode || opLeft[b.dataset.value] === 0;
     }
     $("next").textContent = index + 1 >= PUZZLES.length ? "さいしょへ" : "つぎの問題";
+  }
+
+  /**
+   * 駅のマス。分かっていない駅は、押すとメモを書く対象になる。
+   * 決まった駅にはメモを置かない（決まった時点で消える）。
+   */
+  function stationEl(s, v, isHint) {
+    if (v !== null) {
+      return tile("nect-tile nect-tile--fixed" + (isHint ? " station--hint" : ""), String(v));
+    }
+    const mark = notes[s] ?? new Set();
+    const el = tile("nect-tile station--unknown" + (s === pickedStation ? " station--picked" : ""),
+      mark.size ? "" : "?");
+    if (mark.size) {
+      const box = document.createElement("div");
+      box.className = "station__notes";
+      const cols = mark.size <= 4 ? 2 : 3;
+      box.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+      for (const n of [...mark].sort((a, b) => a - b)) {
+        const t = document.createElement("span");
+        t.textContent = String(n);
+        box.appendChild(t);
+      }
+      el.appendChild(box);
+    }
+    el.addEventListener("click", () => {
+      pickedStation = pickedStation === s ? null : s;
+      pendingOp = null;
+      setMsg(pickedStation === null ? "" : "数字を押すとメモを書く／消す", false);
+      render();
+    });
+    return el;
   }
 
   function edgeEl(e) {
@@ -308,7 +377,7 @@
     numEl.className = num ? "edge__num" : "edge__slot";
     numEl.textContent = num || "・";
     el.append(opEl, numEl);
-    el.addEventListener("click", () => { selected = e; pendingOp = null; render(); });
+    el.addEventListener("click", () => { selected = e; pickedStation = null; pendingOp = null; render(); });
     return el;
   }
 
@@ -328,6 +397,20 @@
   }
 
   function place(kind, value) {
+    /*
+     * 駅を選んでいる間は、数字がメモの書き込み／消しになる。
+     * **正しいかどうかは判定しない。** 判定すると、押して確かめる総当たりが最適戦略に戻る
+     * （`index.html` の place() 冒頭の方針と同じ理由）。
+     */
+    if (pickedStation !== null) {
+      if (kind === "op") { setMsg("駅に書けるのは数字のメモだけ", true); return; }
+      const set = notes[pickedStation] ?? new Set();
+      const n = Number(value);
+      if (set.has(n)) set.delete(n); else set.add(n);
+      notes[pickedStation] = set;
+      render();
+      return;
+    }
     if (kind === "op") { pendingOp = value; render(); return; }
     if (pendingOp === null) { setMsg("さきに記号をえらぶ", true); return; }
 
@@ -395,6 +478,13 @@
      * 直したい1本を選んで消せることのほうが大事なので、例外を外した。
      * まとめて消したい時は、まだ空いている道を選んでから押す。
      */
+    // 駅を選んでいる時は、その駅のメモだけ消す。
+    if (pickedStation !== null) {
+      notes[pickedStation] = new Set();
+      setMsg("", false);
+      render();
+      return;
+    }
     if (!moves[selected]) moves = new Array(edgesOf(puzzle()).length).fill(null);
     else moves[selected] = null;
     const empty = moves.findIndex((m) => m === null);
@@ -407,6 +497,8 @@
   function load(i) {
     index = i;
     moves = new Array(edgesOf(puzzle()).length).fill(null);
+    notes = new Array(stationCount(puzzle())).fill(null).map(() => new Set());
+    pickedStation = null;
     selected = 0;
     pendingOp = null;
     setMsg("", false);
