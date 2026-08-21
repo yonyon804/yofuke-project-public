@@ -1,0 +1,1 @@
+import{n as e}from"./freshStart-DpOXoE8j.js";e(),window.location.replace(new URL(`../`,window.location.href).toString());
