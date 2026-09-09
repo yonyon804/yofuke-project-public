@@ -1,0 +1,121 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit",
+      "Write",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "Skill",
+      "Agent",
+      "Artifact",
+      "TodoWrite",
+      "Monitor",
+      "TaskOutput",
+      "TaskStop",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(pip3 *)",
+      "Bash(bash tools/*)",
+      "Bash(bash .claude/hooks/*)",
+      "Bash(node *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(cut *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(wc *)",
+      "Bash(tr *)",
+      "Bash(diff *)",
+      "Bash(jq *)",
+      "Bash(date *)",
+      "Bash(curl *)",
+      "Bash(sha256sum *)",
+      "Bash(md5sum *)",
+      "Bash(echo *)",
+      "Bash(printf *)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(env)",
+      "Bash(cd *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(touch *)",
+      "Bash(chmod *)",
+      "Bash(tar *)",
+      "Bash(zip *)",
+      "Bash(unzip *)",
+      "Bash(true)",
+      "Bash(test *)",
+      "Bash(xargs *)",
+      "PowerShell(Get-*)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Select-*)",
+      "PowerShell(Measure-*)",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__tabs_create_mcp",
+      "mcp__claude-in-chrome__tabs_close_mcp",
+      "mcp__claude-in-chrome__navigate",
+      "mcp__claude-in-chrome__read_page",
+      "mcp__claude-in-chrome__get_page_text",
+      "mcp__claude-in-chrome__find",
+      "mcp__claude-in-chrome__read_console_messages",
+      "mcp__claude-in-chrome__read_network_requests",
+      "mcp__Claude_Browser__navigate",
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__find",
+      "mcp__Claude_Browser__preview_start"
+    ],
+    "deny": [
+      "Bash(git push * main)",
+      "Bash(git push origin main)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push * --force *)",
+      "Bash(git push * -f *)",
+      "Bash(git push --mirror *)",
+      "Bash(git branch -D main)",
+      "Bash(gh repo delete *)",
+      "Bash(gh pr merge * --admin*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=\"$CLAUDE_PROJECT_DIR/../ys-os/.claude/hooks/require-agent-model.sh\"; if [ -f \"$h\" ]; then exec bash \"$h\"; fi; echo \"ys-os hook: $h が無い。ys-os をこのrepoの隣に clone する。model の有無を見られないので通さない（ADAPTIVE_QA.md §6-2）\" >&2; exit 2"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=\"$(cat)\"; case \"$p\" in *push*|*merge*) ;; *) exit 0 ;; esac; h=\"$CLAUDE_PROJECT_DIR/../ys-os/.claude/hooks/guard-push-merge.sh\"; if [ -f \"$h\" ]; then printf '%s' \"$p\" | bash \"$h\"; exit $?; fi; echo \"ys-os hook: $h が無い。ys-os をこのrepoの隣に clone する。push / merge の宛先を見られないので通さない（ADAPTIVE_QA.md §6-2）\" >&2; exit 2"
+          }
+        ]
+      }
+    ]
+  }
+}
