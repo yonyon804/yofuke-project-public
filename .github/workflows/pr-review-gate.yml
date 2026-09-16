@@ -1,0 +1,42 @@
+name: PR review receipt gate
+
+# 実行役と別の監査役が、この差分（PR head）を完了条件で検品した受領書が無いPRを落とす
+# （Y's OS D-087・2026-09-16）。要求する形と落とせないものは `tools/review_gate.py` の冒頭を正とする
+# （ys-os が正で、このrepoの写しは ys-os の tests/test_shared_copies.py がずれを落とす）。
+#
+# 対象ファイルで絞らない——絞りの外のPRでは走らず、緑に見える（ys-os canonical-gate と同じ理由）。
+# 同じブランチへ続けて push した時は古い実行を cancel する（D-086・通知を増やさない）。
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  receipt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Write PR body
+        # 環境変数経由で渡す。本文はPR作者が書いた任意の文字列なので、shellへ展開しない。
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$PR_BODY" > pr-body.txt
+      - name: Verify review receipt against PR head
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          python3 tools/review_gate.py verify --pr-body-file pr-body.txt --base "origin/$BASE_REF" --rev "$PR_HEAD_SHA"
